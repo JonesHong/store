@@ -38,9 +38,12 @@ platformBrowserDynamic()
 ### Example
 
 [Example][example-url] build with nrwl.
-`/apps/api` the path is Nestjs
-`/apps/app` the path is Angular
-`/libs/mycena-store` the path is instance of mycena-store
+
+The path of `/apps/api` is Nestjs application. (`apps/api/src/app/app.service.ts`)
+
+The path of `/apps/app` is Angular application. (`apps/app/src/app/app.component.ts`)
+
+The path of `/libs/mycena-store` is instance of mycena-store. (`libs/mycena-store/src/lib/mycena-store.unittest.ts`)
 
 ### 開發套件
 
