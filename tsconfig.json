@@ -36,33 +36,19 @@
     /* Experimental Options */
     "experimentalDecorators": true /* Enables experimental support for ES7 decorators. */,
     "emitDecoratorMetadata": true /* Enables experimental support for emitting type metadata for decorators. */,
-    "lib": [
-      "es6",
-      "es2020",
-      "dom"
-    ],
-    "types": [
-      "node",
-      "reflect-metadata"
-    ],
-    "typeRoots": [
-      "node_modules/@types",
-      "src/types"
-    ],
+    "lib": ["es6", "es2020", "dom"],
+    "types": ["node", "reflect-metadata"],
+    "typeRoots": ["node_modules/@types", "src/types"],
     "paths": {
-      "fs": [
-        "./node_modules/file-system"
-      ],
-      "@felangel/bloc": [
-        "./src/lib/@felangel/bloc/bloc.ts"
-      ]
-    }
+      "fs": ["node_modules/file-system"],
+      "@felangel/bloc": ["src/lib/@felangel/bloc/bloc.ts"]
+    },
+    "plugins": [
+      { "transform": "typescript-transform-paths" },
+      { "transform": "typescript-transform-paths", "afterDeclarations": true }
+    ]
   },
-  "include": [
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules/**"
-  ],
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules/**"],
   "compileOnSave": false
 }

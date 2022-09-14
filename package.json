@@ -1,6 +1,6 @@
 {
   "name": "mycena-store",
-  "version": "1.0.1",
+  "version": "1.0.5",
   "description": "For mirgation",
   "author": {
     "name": "JonesHong",
@@ -10,7 +10,8 @@
     {
       "name": "Heng-Shiou Sheu",
       "email": "hengshiousheu@gmail.com"
-    },{
+    },
+    {
       "name": "YouJun Huang",
       "email": "eric444555@gmail.com"
     }
@@ -23,8 +24,8 @@
   "keywords": [],
   "scripts": {
     "build": "run-p build:*",
-    "build:main": "tsc -p tsconfig.json",
-    "build:module": "tsc -p tsconfig.module.json",
+    "build:main": "ttsc -p tsconfig.json",
+    "build:module": "ttsc -p tsconfig.module.json",
     "fix": "run-s fix:*",
     "fix:prettier": "prettier \"src/**/*.ts\" --write",
     "fix:lint": "eslint src --ext .ts --fix",
@@ -36,7 +37,7 @@
     "check-cli": "run-s test diff-integration-tests check-integration-tests",
     "check-integration-tests": "run-s check-integration-test:*",
     "diff-integration-tests": "mkdir -p diff && rm -rf diff/test && cp -r test diff/test && rm -rf diff/test/test-*/.git && cd diff && git init --quiet && git add -A && git commit --quiet --no-verify --allow-empty -m 'WIP' && echo '\\n\\nCommitted most recent integration test output in the \"diff\" directory. Review the changes with \"cd diff && git diff HEAD\" or your preferred git diff viewer.'",
-    "watch:build": "tsc -p tsconfig.json -w",
+    "watch:build": "ttsc -p tsconfig.json -w",
     "watch:test": "nyc --silent ava --watch",
     "cov": "run-s build test:unit cov:html cov:lcov && open-cli coverage/index.html",
     "cov:html": "nyc report --reporter=html",
@@ -70,6 +71,8 @@
     "rxjs": "~6.6.7",
     "strip-ansi": "^6.0.1",
     "tslib": "^2.4.0",
+    "ttypescript": "^1.5.13",
+    "typescript-transform-paths": "^3.3.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
