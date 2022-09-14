@@ -35,6 +35,13 @@ platformBrowserDynamic()
   .catch((err) => console.error(err));
 ```
 
+### Example
+
+[Example][example-url] build with nrwl.
+`/apps/api` the path is Nestjs
+`/apps/app` the path is Angular
+`/libs/mycena-store` the path is instance of mycena-store
+
 ### 開發套件
 
 ```sh
@@ -71,3 +78,4 @@ npm run doc:publish
 [node-version-url]: https://nodejs.org/en/download
 [downloads-image]: https://img.shields.io/npm/dm/mycena-store.svg
 [downloads-url]: https://npmjs.org/package/mycena-store
+[example-url]: https://github.com/JonesHong/testing-store
