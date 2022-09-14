@@ -1,6 +1,6 @@
 {
   "name": "mycena-store",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "description": "For mirgation",
   "author": {
     "name": "JonesHong",
@@ -60,7 +60,6 @@
     "@types/luxon": "^3.0.0",
     "ansi-html": "^0.0.9",
     "chalk": "^4.1.2",
-    "file-system": "^2.2.2",
     "fs": "^0.0.1-security",
     "inversify": "^6.0.1",
     "lodash": "^4.17.21",
