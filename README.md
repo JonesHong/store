@@ -5,12 +5,12 @@
 [![Node.js Version][node-version-image]][node-version-url]
 [![License - MIT](https://img.shields.io/badge/License-MIT-2ea44f?logo=license)](LICENSE)
 
-mycena-store 提供可預測型反應式狀態機的管理機制給 Angular-like 應用程式。啟發來自於 BLoC 設計模式、NgRx 溝通機制、網路資料結構。
+mycena-store 提供可預測型反應式狀態機的管理機制給 Redux-like 應用程式。啟發來自於 BLoC 設計模式、NgRx 溝通機制、網路資料結構。
 
 ## 如何開始使用
 
 ```sh
-1. 前置設定，更改專案中 tsconfig.json 當中 "target" 為 "ES5" 。
+# 1. 前置設定，更改專案中 tsconfig.json 當中 "target" 為 "ES5" 。
 2. 設定 store 當中要有的 Entity ./src/app/mycena-store/<ENTITY>
 3. ENTITY 當中需存在 action.ts/ effects.ts/ entity.ts/ model.ts/ reducer.ts/ selectors.ts
 
