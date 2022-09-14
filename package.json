@@ -3,13 +3,16 @@
   "version": "1.0.0",
   "description": "For mirgation",
   "author": {
-    "name": "Jones Huang",
+    "name": "JonesHong",
     "email": "latte831104@gmail.com"
   },
   "contributors": [
     {
       "name": "Heng-Shiou Sheu",
       "email": "hengshiousheu@gmail.com"
+    },{
+      "name": "YouJun Huang",
+      "email": "eric444555@gmail.com"
     }
   ],
   "main": "build/main/index.js",
