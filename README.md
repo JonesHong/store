@@ -17,7 +17,8 @@ mycena-store 是 Redux-like 應用程式。啟發來自於 BLoC 設計模式、N
 2. 注意 `./tsconfig.json`，可參考以下 Angular Example
 3. `/src/polyfills.ts`中，請補上 `import "reflect-metadata";`  
    [請參考連結][reflect-metadata]
-4. `/src/polyfills.ts`中，請補上
+4. `/src/polyfills.ts`中，請補上  
+   [請參考連結][process]
 
 ```sh
 (window as any).process = {
@@ -25,8 +26,7 @@ mycena-store 是 Redux-like 應用程式。啟發來自於 BLoC 設計模式、N
 };
 ```
 
-[請參考連結][process]  
-5. 在 `./src/main.ts` 中添加到 appModule 如下圖所示
+5. 在 `./src/main.ts` 中添加到 appModule 如下所示
 
 ```sh
 platformBrowserDynamic()
