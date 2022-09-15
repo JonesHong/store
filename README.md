@@ -5,21 +5,30 @@
 [![Node.js Version][node-version-image]][node-version-url]
 [![License - MIT](https://img.shields.io/badge/License-MIT-2ea44f?logo=license)](LICENSE)
 
-mycena-store 提供可預測型反應式狀態機的管理機制給 Redux-like 應用程式。啟發來自於 BLoC 設計模式、NgRx 溝通機制、網路資料結構。
+mycena-store 是 Redux-like 應用程式。啟發來自於 BLoC 設計模式、NgRx 溝通機制、網路資料結構。
 
 ## 如何開始使用
 
+- 如果是 Angular 使用：
+
+1. 請到 `./angular.json` 中，將 "mycena-store" 加到  
+   `projects."PROJECT_NAME".architect.build.options.allowCommonJsDependencies`  
+    [請參考連結][allowedcommonjsdependencies]
+2. 注意 `./tsconfig.json`，可參考以下 Angular Example
+3. `/src/polyfills.ts`中，請補上 `import "reflect-metadata";`  
+   [請參考連結][reflect-metadata]
+4. `/src/polyfills.ts`中，請補上
+
 ```sh
-# 1. 前置設定，更改專案中 tsconfig.json 當中 "target" 為 "ES5" 。
-2. 設定 store 當中要有的 Entity ./src/app/mycena-store/<ENTITY>
-3. ENTITY 當中需存在 action.ts/ effects.ts/ entity.ts/ model.ts/ reducer.ts/ selectors.ts
+(window as any).process = {
+  env: { DEBUG: undefined },
+};
+```
 
-[可參考已經建立好的專案]()
+[請參考連結][process]  
+5. 在 `./src/main.ts` 中添加到 appModule 如下圖所示
 
-4. 建立 store 該有的 index entry
-[可參考已經建立好的專案]()
-
-5. (Angular 專案為例)在 ./src/main.ts 中添加到 appModule 如下圖所示
+```sh
 platformBrowserDynamic()
   .bootstrapModule(AppModule)
   .then((appModule) => {
@@ -35,45 +44,42 @@ platformBrowserDynamic()
   .catch((err) => console.error(err));
 ```
 
-### Example
+6. Effect 中的  
+   @injectable() -> _import { injectable } from "inversify";_  
+   請替換成  
+   @Injectable() -> _import { Injectable } from "@angular/core";_
 
-[Example][example-url] build with nrwl.
+- 如果是 Nestjs 使用
+- 通用設定
 
-The path of `/apps/api` is Nestjs application. (`apps/api/src/app/app.service.ts`)
+1. 於`./tsconfig.json`
 
-The path of `/apps/app` is Angular application. (`apps/app/src/app/app.component.ts`)
+```sh
+{
+  ...,
+  compilerOptions:{
+    ...,
+    paths:[
+      "@<PROJECT_NAME>": ["<PATH_OF_MYCENA_STORE_INSTANCE>"],
+    ]
+    }
+}
+```
 
+[請參考連結][tsconfig_paths]
+
+## Example 範例
+
+[Nrwl Example][example-nrwl-url]  
+The path of `/apps/api` is Nestjs application. (`apps/api/src/app/app.service.ts`)  
+The path of `/apps/app` is Angular application. (`apps/app/src/app/app.component.ts`)  
 The path of `/libs/mycena-store` is instance of mycena-store. (`libs/mycena-store/src/lib/mycena-store.unittest.ts`)
 
-### 開發套件
+[Angular Example][example-angular-url]
 
-```sh
-$ git clone repo
-```
+## 其他
 
-尋求相關人士拿到設計文件。
-
-### 部署到 Npm package
-
-```sh
-1. 執行 compiler build
-$ npm run watch:build
-
-1.5 記得修改 package.json 上的 version
-
-2. 將 build 好的檔案部署到 npm 上
-$ npm publish --access public
-```
-
-### 建立文件
-
-```sh
-1. The src folder is analyzed and documentation is automatically generated using TypeDoc.
-npm run doc
-
-2. To generate and publish your documentation to GitHub Pages use the following command:
-npm run doc:publish
-```
+其他筆記放置於專案下 `./doc`
 
 [npm-image]: https://img.shields.io/npm/v/mycena-store.svg?logo=npm
 [npm-url]: https://www.npmjs.com/package/mycena-store
@@ -81,4 +87,9 @@ npm run doc:publish
 [node-version-url]: https://nodejs.org/en/download
 [downloads-image]: https://img.shields.io/npm/dm/mycena-store.svg
 [downloads-url]: https://npmjs.org/package/mycena-store
-[example-url]: https://github.com/JonesHong/testing-store
+[example-nrwl-url]: https://github.com/JonesHong/testing-store-nrwl
+[example-angular-url]: https://github.com/JonesHong/testing-store-angular
+[allowedcommonjsdependencies]: https://angular.io/guide/build#configuring-commonjs-dependencies
+[reflect-metadata]: https://stackoverflow.com/questions/49079169/typeerror-reflect-hasownmetadata-is-not-a-function
+[process]: https://stackoverflow.com/questions/50313745/angular-6-process-is-not-defined-when-trying-to-serve-application
+[tsconfig_paths]: https://stackoverflow.com/questions/43281741/how-to-use-paths-in-tsconfig-json
