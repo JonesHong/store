@@ -11,13 +11,13 @@ mycena-store 是 Redux-like 應用程式。啟發來自於 BLoC 設計模式、N
 
 - 如果是 Angular 使用：
 
-1. 請到 `./angular.json` 中，將 "mycena-store" 加到  
+1. (必要)請到 `./angular.json` 中，將 "mycena-store" 加到  
    `projects."PROJECT_NAME".architect.build.options.allowCommonJsDependencies`  
     [請參考連結][allowedcommonjsdependencies]
-2. 注意 `./tsconfig.json`，可參考以下 Angular Example
-3. `/src/polyfills.ts`中，請補上 `import "reflect-metadata";`  
+2. (必要)注意 `./tsconfig.json`，可參考以下 Angular Example
+3. (必要)`/src/polyfills.ts`中，請補上 `import "reflect-metadata";`  
    [請參考連結][reflect-metadata]
-4. `/src/polyfills.ts`中，請補上  
+4. (必要)`/src/polyfills.ts`中，請補上  
    [請參考連結][process]
 
 ```sh
@@ -26,7 +26,7 @@ mycena-store 是 Redux-like 應用程式。啟發來自於 BLoC 設計模式、N
 };
 ```
 
-5. 在 `./src/main.ts` 中添加到 appModule 如下所示
+5. (必要)在 `./src/main.ts` 中添加到 appModule 如下所示
 
 ```sh
 platformBrowserDynamic()
@@ -44,15 +44,17 @@ platformBrowserDynamic()
   .catch((err) => console.error(err));
 ```
 
-6. Effect 中的  
+6. (必要)Effect 中的  
    @injectable() -> _import { injectable } from "inversify";_  
    請替換成  
-   @Injectable() -> _import { Injectable } from "@angular/core";_
+   @Injectable() -> \_import { Injectable } from "@angular/core";  
+   以便於使用 angular 產生的 service
 
 - 如果是 Nestjs 使用
 - 通用設定
 
-1. 於`./tsconfig.json`
+1. (非必要) 於`./tsconfig.json`  
+   [請參考連結][tsconfig_paths]
 
 ```sh
 {
@@ -65,8 +67,6 @@ platformBrowserDynamic()
     }
 }
 ```
-
-[請參考連結][tsconfig_paths]
 
 ## Example 範例
 
