@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "description": "For mirgation",
   "author": {
-    "name": "Jones Huang",
+    "name": "Jones Hoang",
     "email": "latte831104@gmail.com"
   },
   "contributors": [
+    {
+      "name": "HuangYu",
+      "email": "eric444555@gmail.com"
+    },
     {
       "name": "Heng-Shiou Sheu",
       "email": "hengshiousheu@gmail.com"
