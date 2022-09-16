@@ -18,7 +18,7 @@ export function createFeatureSelector<T>(featureName: string): Observable<T> {
     };
     if (!this.Store['_reducers'][featureName]) {
       Logger.error(
-        "createFeatureSelector",
+        'createFeatureSelector',
         `Can't find the name ${featureName} of reducer in Store.`
       );
       // console.error(
@@ -69,6 +69,11 @@ export const selectRelevanceEntity = (
       // console.warn(
       //   `[Error/selectRelevanceEntity<${entity[0]}>] There is no ${parameter['key']} in this entity.`
       // );
+      parameter['key'] = parameter['key'].substring(
+        0,
+        parameter['key'].length - 2
+      );
+      if (!!!entityValue[parameter['key']]) return;
       return;
     }
     let typeofParameterKey = typeof entityValue[parameter['key']];
@@ -85,8 +90,8 @@ export const selectRelevanceEntity = (
 
           entityValue[parameter['key']].some(includesObj)
             ? (parameterIdList = entityValue[parameter['key']].map(
-              (entity) => entity.id
-            ))
+                (entity) => entity.id
+              ))
             : (parameterIdList = entityValue[parameter['key']]);
 
           parameterIdList.map((item) => {
@@ -98,8 +103,10 @@ export const selectRelevanceEntity = (
                 break;
               default:
                 Logger.error(
-                  "selectRelevanceEntity",
-                  `There doesn't handle type(${typeof item}).\n${entityValue[parameter['key']]}\n`
+                  'selectRelevanceEntity',
+                  `There doesn't handle type(${typeof item}).\n${
+                    entityValue[parameter['key']]
+                  }\n`
                 );
                 // console.error(
                 //   `[Error/selectRelevanceEntity] There doesn't handle type(${typeof item}).\n${entityValue[parameter['key']]
@@ -118,13 +125,106 @@ export const selectRelevanceEntity = (
       //   break
       default:
         Logger.error(
-          "selectRelevanceEntity",
-          `There doesn't handle type(${typeofParameterKey}).\n${entityValue[parameter['key']]}\n`
+          'selectRelevanceEntity',
+          `There doesn't handle type(${typeofParameterKey}).\n${
+            entityValue[parameter['key']]
+          }\n`
         );
         // console.error(
         //   `[Error/selectRelevanceEntity] There doesn't handle type(${typeofParameterKey}).\n${entityValue[parameter['key']]
         //   }\n`
         // );
+        break;
+    }
+  });
+  // );
+  return payload;
+};
+
+export const selectSourceRelevanceEntity = (
+  state,
+  parameter: { key: string; value: any }
+) => {
+  let entities: [string, {}][] = Object.entries(state['entities']);
+  let payload = [];
+
+  entities.map((entity) => {
+    let entityId = entity[0], // e.g.: "u-1"
+      entityValue = entity[1]; // e.g.: {id:"u-1", name:"Jones"}
+    if (!!!parameter['value'][parameter['key']]) {
+      console.warn(
+        `[Error/selectRelevanceEntity<${entity[0]}>] There is no ${parameter['key']} in this entity.`
+      );
+
+      parameter['key'] = parameter['key'].substring(
+        0,
+        parameter['key'].length - 2
+      );
+      if (!!!parameter['value'][parameter['key']]) return;
+    }
+
+    let typeofParameterKey = typeof parameter['value'][parameter['key']];
+
+    switch (typeofParameterKey) {
+      case 'string':
+        if (parameter['value'][parameter['key']] == entityId) {
+          payload.push(entityValue);
+        }
+        if (
+          typeof parameter['value'] == 'object' &&
+          parameter['value'][parameter['key']] == entityId
+        )
+          payload.push(entityValue);
+        break;
+      case 'object':
+        if (Array.isArray(parameter['value'][parameter['key']])) {
+          // await Promise.all(
+          let parmeterIdList;
+          const includesObj = (element) => typeof element === 'object';
+
+          parameter['value'][parameter['key']].some(includesObj)
+            ? (parmeterIdList = parameter['value'][parameter['key']].map(
+                (entity) => entity.id
+              ))
+            : (parmeterIdList = parameter['value'][parameter['key']]);
+
+          parmeterIdList.map((item) => {
+            switch (typeof item) {
+              case 'string':
+                if (item == entityId) {
+                  payload.push(entityValue);
+                }
+                break;
+              default:
+                console.error(
+                  `[Error/selectRelevanceEntity] There doesn't handle type(${typeof item}).\n${
+                    parameter['value'][parameter['key']]
+                  }\n`
+                );
+                break;
+            }
+          });
+          // )
+        } else {
+          if (parameter['value'][parameter['key']].id == entityId) {
+            payload.push(entityValue);
+            // console.log(123, payload, entityValue)
+          }
+          // console.error(
+          //   `[Error/selectRelevanceEntity] There doesn't handle type(${typeofParameterKey}).\n${
+          //     parameter['value'][parameter['key']]
+          //   }\n`
+          // );
+        }
+        break;
+      // case "undefined":
+      //   break
+      default:
+        console.error(
+          `[Error/selectRelevanceEntity] There doesn't handle type(${typeofParameterKey}).\n${
+            parameter['value'][parameter['key']]
+          }\n`
+        );
         break;
     }
   });
