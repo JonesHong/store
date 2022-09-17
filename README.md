@@ -24,7 +24,11 @@ Angular 有 NgRx，Nestjs 有 CQRS，為什麼還要再做一套呢?
 
 - 通用設定
 
-1.  (非必要) 可於`./tsconfig.json`
+1.  (必要)因為目前倚賴 @felangel/bloc，package.json 的 rxjs 版本請先設定 6.6.7 版，在安裝時請用指令
+    ```bash
+      $ npm install --force
+    ```
+2.  (非必要) 可於`./tsconfig.json`
     ```json
     {
       "compilerOptions":{
