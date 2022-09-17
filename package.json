@@ -1,6 +1,6 @@
 {
   "name": "mycena-store",
-  "version": "1.0.13",
+  "version": "1.1.0",
   "description": "For mirgation",
   "author": {
     "name": "JonesHong",
@@ -56,6 +56,7 @@
     "node": ">=10"
   },
   "dependencies": {
+    "@felangel/bloc": "^0.3.0",
     "@types/lodash": "^4.14.182",
     "@types/luxon": "^3.0.0",
     "ansi-html": "^0.0.9",

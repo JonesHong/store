@@ -40,7 +40,7 @@
     "types": ["node", "reflect-metadata"],
     "typeRoots": ["node_modules/@types", "src/types"],
     "paths": {
-      "@felangel/bloc": ["src/lib/@felangel/bloc/bloc.ts"]
+      // "@felangel/bloc": ["src/lib/@felangel/bloc/bloc.ts"]
     },
     "plugins": [
       { "transform": "typescript-transform-paths" },
