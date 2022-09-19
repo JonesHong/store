@@ -20,15 +20,14 @@ Angular 有 NgRx，Nestjs 有 CQRS，為什麼還要再做一套呢?
 唯一存在的 Store 是門面，有任何訊息傳遞都是以 Action 的形式通知它，用於系統內部邏輯處理的就交給 Reducer, BLoC 處理；要去系統外(Database, Other service)拿資料的話就由 Effect 處理，呼叫對應的 Service 後，等待回覆後再以 Action 形式再丟回 Store 中。  
 而有了 Selector 以後，可搭配 Socket, PRC...等即時的通訊方式，有任何改變 Server 端可以主動 broadcast 給所有 Client 端。
 
+![constructor_of_app][constructor_of_app]
+[詳細說明書][manual]
 ## 如何開始使用
 
 - 通用設定
 
-1.  (必要)因為目前倚賴 @felangel/bloc，package.json 的 rxjs 版本請先設定 6.6.7 版，在安裝時請用指令
-    ```bash
-      $ npm install --force
-    ```
-2.  (非必要) 可於`./tsconfig.json`
+1. (非必要) 可於`./tsconfig.json`
+
     ```json
     {
       "compilerOptions":{
@@ -38,11 +37,13 @@ Angular 有 NgRx，Nestjs 有 CQRS，為什麼還要再做一套呢?
       }
     }
     ```
+
     (請參考連結: [tsconfig_paths][tsconfig_paths])
 
 - 如果是 Angular 使用：
 
-1.  (必要)請到 `./angular.json` 中，將 "mycena-store" 加到 allowCommonJsDependencies 下
+1. (必要)請到 `./angular.json` 中，將 "mycena-store" 加到 allowCommonJsDependencies 下
+
     ```json
     {
       "projects": {
@@ -58,8 +59,10 @@ Angular 有 NgRx，Nestjs 有 CQRS，為什麼還要再做一套呢?
       }
     }
     ```
+
     (請參考連結: [allowed common js dependencies][allowedcommonjsdependencies])
-2.  (必要)注意 `./tsconfig.json`，可參考以下 Angular Example
+2. (必要)注意 `./tsconfig.json`，可參考以下 Angular Example
+
     ```json
     {
       "compilerOptions": {
@@ -77,8 +80,7 @@ Angular 有 NgRx，Nestjs 有 CQRS，為什麼還要再做一套呢?
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true,
         "importHelpers": true,
-        /* Because of @felangel/bloc extend Observable from rxjs. It's must be target: es5.*/
-        "target": "es5",
+        "target": "es2021",
         "module": "esnext",
         "types": ["node"],
         "lib": ["es2017", "es2021", "dom"],
@@ -87,9 +89,10 @@ Angular 有 NgRx，Nestjs 有 CQRS，為什麼還要再做一套呢?
       }
     }
     ```
+
     將來有時間的話要來重寫 @felangel/bloc 裡面的邏輯。  
     (請參考連結: [extend-observable][extend-observable])
-3.  (必要)`/src/polyfills.ts`中，請加到
+3. (必要)`/src/polyfills.ts`中，請加到
 
     ```ts
     import 'reflect-metadata';
@@ -100,17 +103,19 @@ Angular 有 NgRx，Nestjs 有 CQRS，為什麼還要再做一套呢?
 
     (請參考連結: [reflect-metadata][reflect-metadata], [process][process])
 
-4.  (必要)在 `./src/main.ts` 中，將 appModule 添加到 Cqrs 如下所示
+4. (必要)在 `./src/main.ts` 中，將 appModule 添加到 Cqrs 如下所示
 
     ```ts
     platformBrowserDynamic()
       .bootstrapModule(AppModule)
       .then((appModule) => {
         // Ensure Angular destroys itself on hot reloads.
-        if (window['ngRef']) {
-          window['ngRef'].destroy();
-        }
-        window['ngRef'] = appModule;
+        /**
+          if (window['ngRef']) {
+            window['ngRef'].destroy();
+          }
+          window['ngRef'] = appModule;
+        */
 
         // And this line for adoption
         Cqrs.setAppModule(appModule);
@@ -118,7 +123,8 @@ Angular 有 NgRx，Nestjs 有 CQRS，為什麼還要再做一套呢?
       .catch((err) => console.error(err));
     ```
 
-5.  (必要)Effect 中的
+5. (必要)Effect 中的
+
     ```ts
     // e.g.
     import { injectable } from 'inversify';
@@ -129,6 +135,7 @@ Angular 有 NgRx，Nestjs 有 CQRS，為什麼還要再做一套呢?
     @Injectable()
     class GroupEffect {}
     ```
+
     以便於 Dependency-Injection 使用 angular 產生的 service
 
 - 如果是 Nestjs 使用
@@ -148,6 +155,7 @@ Angular 有 NgRx，Nestjs 有 CQRS，為什麼還要再做一套呢?
    ```
 
 3. (必要)Effect 中
+
    ```ts
    // e.g.
    import { injectable } from 'inversify';
@@ -158,6 +166,7 @@ Angular 有 NgRx，Nestjs 有 CQRS，為什麼還要再做一套呢?
    @Injectable()
    class GroupEffect {}
    ```
+
    以便於 Dependency-Injection 使用 nest 產生的 service
 
 ## Example 範例
@@ -188,7 +197,7 @@ The path of `/libs/mycena-store` is instance of mycena-store. (`libs/mycena-stor
 [downloads-url]: https://npmjs.org/package/mycena-store
 
 <!-- 圖片 -->
-
+[constructor_of_app]: https://ngrx.io/generated/images/guide/store/consturctor_of_app.png "https://drive.google.com/file/d/1xfxVHpPUJM6mJySblGvp27UbfOk0j3d-/view?usp=sharing"
 [ngrx-diagram]: https://ngrx.io/generated/images/guide/store/state-management-lifecycle.png 'https://github.com/JonesHong/store/doc/images/state-management-lifecycle.png'
 
 <!-- 參考 -->
@@ -207,7 +216,7 @@ The path of `/libs/mycena-store` is instance of mycena-store. (`libs/mycena-stor
 [nest-example-url]: https://github.com/JonesHong/nest-testing-store
 
 <!-- 其他 -->
-
+[manual]: https://docs.google.com/document/d/1bbjQLsijVwKDIq3D7S9yS6Rc9WcenCmREs27ZTU95EM/edit?usp=sharing "https://github.com/JonesHong/store/blob/Joneshong/doc/mycena-store說明書.pdf"
 [note.md]: https://github.com/JonesHong/store/blob/Joneshong/doc/NOTE.md
 [version.md]: https://github.com/JonesHong/store/blob/Joneshong/doc/VERSION.md
 [outlook.md]: https://github.com/JonesHong/store/blob/Joneshong/doc/OUTLOOK.md
