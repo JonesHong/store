@@ -1,6 +1,6 @@
 {
   "name": "mycena-store",
-  "version": "1.1.1",
+  "version": "1.1.3",
   "description": "For mirgation",
   "author": {
     "name": "JonesHong",
@@ -56,7 +56,6 @@
     "node": ">=10"
   },
   "dependencies": {
-    "@felangel/bloc": "^0.3.0",
     "@types/lodash": "^4.14.182",
     "@types/luxon": "^3.0.0",
     "ansi-html": "^0.0.9",
@@ -68,7 +67,7 @@
     "luxon": "^3.0.3",
     "path": "^0.12.7",
     "reflect-metadata": "^0.1.13",
-    "rxjs": "~6.6.7",
+    "rxjs": "~7.5.6",
     "strip-ansi": "^6.0.1",
     "tslib": "^2.4.0",
     "ttypescript": "^1.5.13",

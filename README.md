@@ -173,9 +173,10 @@ The path of `/libs/mycena-store` is instance of mycena-store. (`libs/mycena-stor
 ## 其他
 
 其他文件放置於專案下 `./doc`
-[NOTE 筆記][note]
-[VERSION 歷史版本][version]
-[OUTLOOK 未來展望][outlook]
+[NOTE 筆記][note.md]
+[VERSION 歷史版本][version.md]
+[OUTLOOK 未來展望][outlook.md]
+[BUG 已知待修復Bug][bug.md]
 
 <!-- 說明小圖示 -->
 
@@ -207,6 +208,7 @@ The path of `/libs/mycena-store` is instance of mycena-store. (`libs/mycena-stor
 
 <!-- 其他 -->
 
-[note]: https://github.com/JonesHong/store/doc/NOTE.md
-[version]: https://github.com/JonesHong/store/doc/VERSION.md
-[outlook]: https://github.com/JonesHong/store/doc/OUTLOOK.md
+[note.md]: https://github.com/JonesHong/store/blob/Joneshong/doc/NOTE.md
+[version.md]: https://github.com/JonesHong/store/blob/Joneshong/doc/VERSION.md
+[outlook.md]: https://github.com/JonesHong/store/blob/Joneshong/doc/OUTLOOK.md
+[bug.md]: https://github.com/JonesHong/store/blob/Joneshong/doc/BUG.md

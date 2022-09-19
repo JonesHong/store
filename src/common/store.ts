@@ -1,14 +1,14 @@
 import * as _ from "lodash";
-import { asapScheduler, BehaviorSubject, Observable, Subject, Subscription, TeardownLogic } from "rxjs";
+import { asapScheduler, BehaviorSubject, Observable, pipe, Subject, Subscription, TeardownLogic } from "rxjs";
 // import { addToSubscription } from "./store.interface";
 import { Broker } from "./broker";
-import { Action } from "./action";
+import { Action, AddMany, RemoveMany, SetMany } from "./action";
 import { Reducer } from "./reducer";
 import { createFeatureSelector } from "./selector";
 import { CqrsMain } from "./main";
 import { LastSettlement } from "./adapter";
 import { v4 as uuidv4 } from "uuid"
-import { filter } from "rxjs/operators";
+import { filter, map } from "rxjs/operators";
 // import { CacheService } from "./cache";
 
 
@@ -122,7 +122,7 @@ export class Store<initialState, Reducers> extends Broker {
       this._state = newState;
       this._state$.next(newState);
       // this._stateInstantiate = reducer.turnStateToEntities();
-      let _settlement = {
+      let _settlement: settlement = {
         reducerName,
         _previousHash: state['_previousHash'],
         _currentHash: state['_currentHash'],
@@ -159,3 +159,37 @@ export class Store<initialState, Reducers> extends Broker {
 
 // }
 
+export const settlementToObject = () => {
+  return pipe(
+    map((settlement: settlement) => {
+      let _payload = [],
+        _create = Object.values(settlement.lastSettlement['create']),
+        _update = Object.values(settlement.lastSettlement['update']),
+        _delete = Object.values(settlement.lastSettlement['delete']);
+      if (_create.length !== 0) {
+        _payload.push(
+          new AddMany(
+            settlement.reducerName,
+            _create
+          ).toObject()
+        )
+      }
+      if (_update.length !== 0) {
+        _payload.push(
+          new SetMany(
+            settlement.reducerName,
+            _update
+          ).toObject()
+        )
+      } if (_delete.length !== 0) {
+        _payload.push(
+          new RemoveMany(
+            settlement.reducerName,
+            _delete
+          ).toObject()
+        )
+      }
+      return _payload;
+    })
+  )
+}
