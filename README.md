@@ -181,11 +181,11 @@ The path of `/libs/mycena-store` is instance of mycena-store. (`libs/mycena-stor
 
 ## 其他
 
-其他文件放置於專案下 `./doc`
-[NOTE 筆記][note.md]
-[VERSION 歷史版本][version.md]
-[OUTLOOK 未來展望][outlook.md]
-[BUG 已知待修復Bug][bug.md]
+其他文件放置於專案下 `./doc`  
+[NOTE 筆記][note.md]  
+[VERSION 歷史版本][version.md]  
+[OUTLOOK 未來展望][outlook.md]  
+[BUG 已知待修復Bug][bug.md]  
 
 <!-- 說明小圖示 -->
 
@@ -197,7 +197,7 @@ The path of `/libs/mycena-store` is instance of mycena-store. (`libs/mycena-stor
 [downloads-url]: https://npmjs.org/package/mycena-store
 
 <!-- 圖片 -->
-[constructor_of_app]: https://ngrx.io/generated/images/guide/store/consturctor_of_app.png "https://drive.google.com/file/d/1xfxVHpPUJM6mJySblGvp27UbfOk0j3d-/view?usp=sharing"
+[constructor_of_app]: https://github.com/JonesHong/store/blob/Joneshong/doc/images/consturctor_of_app.png?raw=true "https://drive.google.com/file/d/1xfxVHpPUJM6mJySblGvp27UbfOk0j3d-/view?usp=sharing"
 [ngrx-diagram]: https://ngrx.io/generated/images/guide/store/state-management-lifecycle.png 'https://github.com/JonesHong/store/doc/images/state-management-lifecycle.png'
 
 <!-- 參考 -->
