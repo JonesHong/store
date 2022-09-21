@@ -1,10 +1,9 @@
-import { Observable, Subject, EMPTY, Subscription, PartialObserver, UnaryFunction, identity, BehaviorSubject } from 'rxjs'
+import { Observable, Subject, EMPTY, Subscription } from 'rxjs'
 import { catchError, concatMap, map } from 'rxjs/operators'
 import { BlocObserver, EventStreamClosedError, Transition } from '../bloc'
 
-
 export type NextFunction<Event, State> = (value: Event) => Observable<Transition<Event, State>>
-new Observable().pipe()
+
 /**
  *
  * Takes a stream of `Events` as input and transforms them into a Stream of `States` as output.
@@ -16,37 +15,13 @@ new Observable().pipe()
  * @template Event
  * @template State
  */
-//  extends Observable<State> ?
-export abstract class Bloc<Event, State> {
-  public bloc$: BehaviorSubject<State>;
+export abstract class Bloc<Event, State> extends Observable<State> {
   constructor(private _state: State) {
-    // super()
-    this.bloc$ = new BehaviorSubject(_state)
+    super()
     this.stateSubject = new Subject()
     this.bindStateSubject()
   }
-  // - - - Edited START. by Joneshong - - -
-  // https://github.com/ReactiveX/rxjs/blob/master/src/internal/util/pipe.ts
-  static subscribe(observer?: PartialObserver<any>) {
-    return this.prototype.bloc$.subscribe(observer)
-  }
-  static pipe(...fns: Array<UnaryFunction<any, any>>) {
-    return this.prototype.bloc$.pipe(this.prototype.pipeFromArray(fns));
-  }
-  private pipeFromArray<T, R>(fns: Array<UnaryFunction<T, R>>): UnaryFunction<T, R> {
-    if (fns.length === 0) {
-      return identity as UnaryFunction<any, any>;
-    }
 
-    if (fns.length === 1) {
-      return fns[0];
-    }
-
-    return function piped(input: T): R {
-      return fns.reduce((prev: any, fn: UnaryFunction<T, R>) => fn(prev), input as any);
-    };
-  }
-  // - - - Edited END. by Joneshong - - -
   private emitted: boolean = false
   private eventSubject = new Subject<Event>()
   private stateSubject: Subject<State>

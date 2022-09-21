@@ -1,9 +1,4 @@
-import {
-  asapScheduler,
-  BehaviorSubject,
-  Observable,
-  Subscription,
-} from 'rxjs';
+import { asapScheduler, BehaviorSubject, Observable, Subscription } from 'rxjs';
 import { Action } from './action';
 import { Reducer } from './reducer';
 import { createFeatureSelector } from './selector';
@@ -107,7 +102,7 @@ export class CqrsMain<initialState, Reducers> {
     return this._Store.getBroadcast().asObservable();
   }
   private _isEffectLoadedSubscribe: Subscription;
-  constructor() { }
+  constructor() {}
   setRelationConfig = (relationConfig): void => {
     this._relationConfig = relationConfig;
     this.StoreWithRelationSubs();
@@ -116,8 +111,8 @@ export class CqrsMain<initialState, Reducers> {
     this._relationshipByType = relationshipByType;
   };
   /**
-   * 
-   * @param appModuleType 
+   *
+   * @param appModuleType
    */
   setAppModuleType(appModuleType: 'nest' | 'angular' | 'unit-test') {
     this._appModuleType = appModuleType;
@@ -132,8 +127,12 @@ export class CqrsMain<initialState, Reducers> {
       // console.warn(
       //   `[Warning/CqrsMain] You don't set appModuleType yet, it will auto match with appModule you provide!`
       // );
-      let _logger = Logger.warn("CqrsMain", `You don't set appModuleType yet, it will auto match with appModule you provide!`)
-      if (envType == "browser" && _logger['options']['isPrint']) console.warn(_logger['_str']);
+      let _logger = Logger.warn(
+        'CqrsMain',
+        `You don't set appModuleType yet, it will auto match with appModule you provide!`
+      );
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.warn(_logger['_str']);
       if (!!('injector' in appModule)) {
         this._appModuleType = 'angular';
       } else if (!!app && !!('select' in app)) {
@@ -182,8 +181,9 @@ export class CqrsMain<initialState, Reducers> {
   forRootReducers = (reducers: Reducers): void => {
     if (typeof reducers !== 'object' || Array.isArray(reducers)) {
       // console.error(`[Error/forRootReducers] Input must be a object.`);
-      let _logger = Logger.error("forRootReducers", "Input must be a object.")
-      if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
+      let _logger = Logger.error('forRootReducers', 'Input must be a object.');
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.error(_logger['_str']);
       return null;
     }
     this._Store = this.StoreMatchReducer(reducers);
@@ -265,14 +265,19 @@ export class CqrsMain<initialState, Reducers> {
     //   `[Log/forRootEffects] forRootEffects is loaded successfully in ${this.effectRetryCount} times.`
     // );
     {
-      let _logger = Logger.log("forRootEffects", `forRootEffects is loaded successfully in ${this.effectRetryCount} times.`)
-      if (envType == "browser" && _logger['options']['isPrint']) console.log(_logger['_str']);
+      let _logger = Logger.log(
+        'forRootEffects',
+        `forRootEffects is loaded successfully in ${this.effectRetryCount} times.`
+      );
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.log(_logger['_str']);
     }
     this.isEffectLoaded$.next(true);
     if (typeof effects !== 'object' || !Array.isArray(effects)) {
       // console.error(`[Error/forRootEffects] Input must be an array.`);
-      let _logger = Logger.error("forRootEffects", "Input must be an array.");
-      if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
+      let _logger = Logger.error('forRootEffects', 'Input must be an array.');
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.error(_logger['_str']);
       return null;
     }
     // console.log(88888, effects)
@@ -294,8 +299,12 @@ export class CqrsMain<initialState, Reducers> {
           break;
         default:
           // console.error('[Error/forRootEffects] Please check AppModule.');
-          let _logger = Logger.error("forRootEffects", "Please check AppModule.")
-          if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
+          let _logger = Logger.error(
+            'forRootEffects',
+            'Please check AppModule.'
+          );
+          if (envType == 'browser' && _logger['options']['isPrint'])
+            console.error(_logger['_str']);
           break;
       }
       let effectName = effectInstance['constructor']['name'],
@@ -326,10 +335,15 @@ export class CqrsMain<initialState, Reducers> {
     });
     // )
     let _afterExec = DateTime.now();
-    let execTime = _afterExec.diff(_beforeExec, "milliseconds").toMillis();
+    let execTime = _afterExec.diff(_beforeExec, 'milliseconds').toMillis();
     {
-      let _logger = Logger.log("forRootEffects", `forRootEffects loaded successfully.`, { execTime });
-      if (envType == "browser" && _logger['options']['isPrint']) console.log(_logger['_str']);
+      let _logger = Logger.log(
+        'forRootEffects',
+        `forRootEffects loaded successfully.`,
+        { execTime }
+      );
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.log(_logger['_str']);
     }
     // }, 3000)
   };
@@ -341,14 +355,14 @@ export class CqrsMain<initialState, Reducers> {
 // import { ReducerPaginationPipe } from "./pipes/pagination.pipe";
 // ReducerPaginationPipe({ "limit": 111 })
 
-Logger.log("Dev", "124")
-Logger.log("Dev", "5678", { "isPrint": false })
+Logger.log('Dev', '124');
+Logger.log('Dev', '5678', { isPrint: false });
 var getStackTrace = function () {
   var obj = {};
   Error.captureStackTrace(obj, getStackTrace);
   return obj['stack'];
 };
-Logger.log("Dev", "999999")
+Logger.log('Dev', '999999');
 
 // https://stackoverflow.com/questions/52595559/how-to-log-js-stack-trace-with-console-trace-but-keep-it-collapsed
 // console.groupCollapsed();
