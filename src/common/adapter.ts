@@ -145,8 +145,8 @@ const cloneAndReset = (state, action?: Action) => {
  * 後令壓前令
  * @param entities
  */
-const makeEntitiesUniqById = (entities: {}[]) => {
-  let uniqEntitiesObject: { [id: string]: {} } = entities.reduce(
+const makeEntitiesUniqById = (entities: {[key: string]: any}[]) => {
+  let uniqEntitiesObject: { [id: string]: object } = entities.reduce(
     (acc, entity) => {
       acc[entity['id']] = entity;
       return acc;
@@ -328,7 +328,7 @@ const setOne = function (entity: object, newState) {
 /**
  * Add or Replace multiple entities in the collection.
  */
-const setMany = function (entities: {}[], newState) {
+const setMany = function (entities: object[], newState) {
   if (!Array.isArray(entities)) {
     // console.error(`[Error/setMany] SetMany ids need to be Array`);
     let _logger = Logger.error(
@@ -346,7 +346,7 @@ const setMany = function (entities: {}[], newState) {
 /**
  * Replace current collection with provided collection.
  */
-const setAll = function (entities: {}[], newState) {
+const setAll = function (entities: object[], newState) {
   if (!Array.isArray(entities)) {
     // console.error(`[Error/setAll] SetAll ids need to be Array`);
     let _logger = Logger.error(
