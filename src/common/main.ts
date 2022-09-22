@@ -4,11 +4,8 @@ import { Reducer } from './reducer';
 import { createFeatureSelector } from './selector';
 import { Store } from './store';
 import { Effect } from './effect';
-import {
-  IEntityRelationConfig,
-  RelationshipByType,
-} from './interface/relation.interface';
-import { Relation, RelationManager } from './relation';
+import { IEntityRelationConfig, RelationshipByType } from './interface/relation.interface';
+import { RelationManager } from './relation';
 import * as _ from 'lodash';
 // import { createClient, RedisClientOptions, RedisClientType, RedisDefaultModules, RedisModules, RedisScripts } from 'redis';
 // import { CacheService, RedisOptions } from "./cache";
@@ -22,9 +19,7 @@ import { DateTime } from 'luxon';
 // CqrsContainer.bind(AppService).toSelf();
 
 export class CqrsMain<initialState, Reducers> {
-  private _StoreState$: BehaviorSubject<initialState> = new BehaviorSubject(
-    null
-  );
+  private _StoreState$: BehaviorSubject<initialState> = new BehaviorSubject(null);
   private _Store: Store<initialState, Reducers>;
   private _StoreRelationSubs;
   // private _Actions$: BehaviorSubject<Action> = new BehaviorSubject(null);
@@ -82,10 +77,7 @@ export class CqrsMain<initialState, Reducers> {
     //     return null
     // }
     if (!!this._Store && !!this._relationConfig && !this._StoreRelationSubs) {
-      this._StoreRelationSubs = RelationManager.StoreRelation<
-        initialState,
-        Reducers
-      >(this._Store, this._relationConfig).subscribe((data: initialState) => {
+      this._StoreRelationSubs = RelationManager.StoreRelation<initialState, Reducers>(this._Store, this._relationConfig).subscribe((data: initialState) => {
         this._StoreWithRelation$.next(data);
       });
     }
@@ -102,7 +94,7 @@ export class CqrsMain<initialState, Reducers> {
     return this._Store.getBroadcast().asObservable();
   }
   private _isEffectLoadedSubscribe: Subscription;
-  constructor() {}
+  constructor() { }
   setRelationConfig = (relationConfig): void => {
     this._relationConfig = relationConfig;
     this.StoreWithRelationSubs();
@@ -241,7 +233,7 @@ export class CqrsMain<initialState, Reducers> {
   effectRetryCount = 0;
   effectRetryInterval = 100;
   isEffectLoaded$ = new BehaviorSubject(false);
-  timeLableSet = new Set([]);
+  timeLabelSet = new Set([]);
   forRootEffects = (effects: any[]): void => {
     let _beforeExec = DateTime.now();
     // let _timeLabel = '[Loaded] forRootEffects successfully.';
@@ -355,14 +347,14 @@ export class CqrsMain<initialState, Reducers> {
 // import { ReducerPaginationPipe } from "./pipes/pagination.pipe";
 // ReducerPaginationPipe({ "limit": 111 })
 
-Logger.log('Dev', '124');
-Logger.log('Dev', '5678', { isPrint: false });
-var getStackTrace = function () {
-  var obj = {};
-  Error.captureStackTrace(obj, getStackTrace);
-  return obj['stack'];
-};
-Logger.log('Dev', '999999');
+// Logger.log('Dev', '124');
+// Logger.log('Dev', '5678', { isPrint: false });
+// var getStackTrace = function () {
+//   var obj = {};
+//   Error.captureStackTrace(obj, getStackTrace);
+//   return obj['stack'];
+// };
+// Logger.log('Dev', '999999');
 
 // https://stackoverflow.com/questions/52595559/how-to-log-js-stack-trace-with-console-trace-but-keep-it-collapsed
 // console.groupCollapsed();

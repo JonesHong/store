@@ -198,7 +198,7 @@ The path of `/libs/mycena-store` is instance of mycena-store. (`libs/mycena-stor
 
 <!-- 圖片 -->
 [constructor_of_app]: https://github.com/JonesHong/store/blob/Joneshong/doc/images/consturctor_of_app.png?raw=true "https://drive.google.com/file/d/1xfxVHpPUJM6mJySblGvp27UbfOk0j3d-/view?usp=sharing"
-[ngrx-diagram]: https://ngrx.io/generated/images/guide/store/state-management-lifecycle.png 'https://github.com/JonesHong/store/doc/images/state-management-lifecycle.png'
+[ngrx-diagram]:  https://github.com/JonesHong/store/blob/Joneshong/doc/images/state-management-lifecycle.png?raw=true 'https://ngrx.io/generated/images/guide/store/state-management-lifecycle.png'
 
 <!-- 參考 -->
 

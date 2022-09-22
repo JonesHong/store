@@ -1,10 +1,9 @@
 import { from, Observable, of, pipe, Subscription, throwError } from 'rxjs';
 import { filter, map, mergeMap, tap } from 'rxjs/operators';
 import { Action } from './action';
-import { CqrsMain } from './main';
 
 
-type Soucre = () => Observable<Action | any>;
+type Source = () => Observable<Action | any>;
 interface Config {
     dispatch: boolean;
     // effectName?: string
@@ -16,14 +15,14 @@ interface ConfigWithKeep extends Config {
     dispatch: false
 }
 export type Effect = Observable<any>;
-function createEffect(soucre: () => Observable<Action>, config?: ConfigWithDispatch): Effect;
-function createEffect(soucre: () => Observable<any>, config: ConfigWithKeep): Effect;
-function createEffect(soucre: Soucre, config: Config = { dispatch: true }) {
-    // let _soucre, _config;
+function createEffect(source: () => Observable<Action>, config?: ConfigWithDispatch): Effect;
+function createEffect(source: () => Observable<any>, config: ConfigWithKeep): Effect;
+function createEffect(source: Source, config: Config = { dispatch: true }) {
+    // let _source, _config;
     // if (!!config['dispatch']) {
-    //     _soucre = soucre as Observable<Action>
+    //     _source = source as Observable<Action>
     // // }
-    return from(soucre()).pipe(
+    return from(source()).pipe(
         map(sourceFun => {
             return { sourceFun, config }
         }),

@@ -1,5 +1,4 @@
-import _ from 'lodash';
-import { asapScheduler } from 'rxjs';
+import * as _ from 'lodash';
 import { envType } from './env_checker';
 import { RelationDescription } from './interface/relation.interface';
 import { Logger } from './logger';
