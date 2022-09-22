@@ -10,7 +10,7 @@ import {
   tap,
   toArray,
 } from 'rxjs/operators';
-import { from, Observable, of, pipe, throwError, UnaryFunction } from 'rxjs';
+import { from, Observable, of, pipe, concatWith } from 'rxjs';
 import {
   IEntityRelationConfig,
   RelationDescription,
@@ -25,6 +25,7 @@ import {
   cloneAndReset,
   removeMany,
   removeOne,
+  setOne,
   updateMany,
 } from './adapter';
 import { v4 as uuidV4 } from 'uuid';
@@ -595,8 +596,25 @@ export class Relation {
         mergeMap((entity: Entity) => {
           let entityId = entity['id'];
           if (!!_sourceRelationConfigs && _sourceRelationConfigs.length !== 0) {
+            let _configsIndex = -1;
             return from(_sourceRelationConfigs).pipe(
               map((_sourceRelationConfig) => {
+                const findTargetRelationConfig = () => {
+                  let _payload = _targetRelationConfigs.find((config, index) => {
+                      // console.log(329083038203, _configsIndex, index, config)
+                      // console.log(_configsIndex !== index, config['targetEntity'] == `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`)
+                      if (_configsIndex !== index && config['targetEntity'] == `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`) {
+                          _configsIndex = index;
+                          return true;
+                      }
+                  });
+                  if (!_payload) {
+                      _configsIndex = -1;
+                      return findTargetRelationConfig();
+                  }
+                  return _payload
+              }
+
                 _targetEntity = `${_sourceRelationConfig[
                   'targetEntity'
                 ][0].toLowerCase()}${_sourceRelationConfig[
@@ -604,11 +622,7 @@ export class Relation {
                 ].slice(1)}`;
                 _targetState = _stateClone[_targetEntity];
                 _targetRelationConfigs = config[_targetEntity];
-                _targetRelationConfig = _targetRelationConfigs.find(
-                  (config) =>
-                    config['targetEntity'] ==
-                    `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`
-                );
+                _targetRelationConfig = findTargetRelationConfig();
 
                 let relevanceEntities = [];
                 switch (_sourceRelationConfig['type']) {
@@ -654,7 +668,7 @@ export class Relation {
                       }`;
                       relevanceEntities = selectSourceRelevanceEntity(
                         _targetState,
-                        { key: `${key}s`, value: entity }
+                        { key: `${key}Id`, value: entity }
                       );
                     }
 
@@ -664,6 +678,7 @@ export class Relation {
                           source: _sourceRelationConfig,
                         })
                       : null;
+                      
                     // relevanceEntities.length !== 0 ? entity.addManyToOne(relevanceEntities) : null;
                     break;
                   }
@@ -680,7 +695,7 @@ export class Relation {
                       }`;
                       relevanceEntities = selectSourceRelevanceEntity(
                         _targetState,
-                        { key: `${key}Id`, value: entity }
+                        { key: `${key}s`, value: entity }
                       );
                     }
 
@@ -742,34 +757,72 @@ export class Relation {
       //     return !!reducerSettlement['lastSettlement']['isChanged'];
       // }),
       mergeMap((reducerSettlement) => {
-        this._reducerSettlement = reducerSettlement;
-        if (!!reducerSettlement['lastSettlement']['isChanged']) {
-          return of(reducerSettlement).pipe(
+        let _reducerSettlement = _.cloneDeep(reducerSettlement);
+        this._reducerSettlement = _reducerSettlement;
+
+        if (!!_reducerSettlement['lastSettlement']['isChanged']) {
+          return of(_reducerSettlement).pipe(
             // update _stateClone
-            map((reducerSettlement) => {
-              _sourceEntity = reducerSettlement['reducerName'];
-              _reducer = store['reducers'][reducerSettlement['reducerName']];
-              _sourceState = cloneAndReset(
-                _stateClone[reducerSettlement['reducerName']]
-              );
+            map((_reducerSettlement) => {
+              _sourceEntity = _reducerSettlement['reducerName'];
+              _reducer = store['reducers'][_reducerSettlement['reducerName']];
+              //   _sourceState = cloneAndReset(
+              //     _stateClone[_reducerSettlement['reducerName']]
+              //   );
+              _sourceState = _stateClone[_sourceEntity];
+
               _values = {
                 create: _reducer.createEntities(
-                  Object.values(reducerSettlement['lastSettlement']['create'])
+                  Object.values(_reducerSettlement['lastSettlement']['create'])
                 ),
-                update: _reducer.createEntities(
-                  Object.values(reducerSettlement['lastSettlement']['update'])
+                // update: _reducer.createEntities(
+                //   Object.values(_reducerSettlement['lastSettlement']['update'])
+                // ),
+                update: Object.values(
+                  _reducerSettlement['lastSettlement']['update']
                 ),
                 delete: Object.values(
-                  reducerSettlement['lastSettlement']['delete']
+                  _reducerSettlement['lastSettlement']['delete']
                 ),
               };
-              _sourceRelationConfigs = config[reducerSettlement['reducerName']];
+
+              //   _sourceRelationConfigs = config[reducerSettlement['reducerName']];
+              _sourceRelationConfigs = config[_sourceEntity];
               _values.create.length !== 0
                 ? (_sourceState = addMany(_values.create, _sourceState))
                 : null;
-              _values.update.length !== 0
-                ? (_sourceState = updateMany(_values.update, _sourceState))
-                : null;
+              //   _values.update.length !== 0
+              //     ? (_sourceState = updateMany(_values.update, _sourceState))
+              //     : null;
+              //更新=>先斷開連結再重新build
+              _values['update'] = _values['update']
+                .map((entityObject) => {
+                  // console.log(
+                  //   entityObject,
+                  //   _sourceState,
+                  //   _sourceState['ids'].find((id) => id == entityObject['id'])
+                  // );
+                  if (
+                    !_sourceState['ids'].find((id) => id == entityObject['id'])
+                  ) {
+                    // Logger.warn()
+                    return;
+                  }
+                  let _entity =
+                    _stateClone[_sourceEntity]['entities'][entityObject['id']];
+                  // 可能有問題，先試試看
+                  _entity.breakAllReferences();
+                  // console.log(_entity)
+                  _entity = _reducer.createEntity(entityObject);
+                  // Object.entries(entityObject).map(entry => {
+                  //     // console.log(_key)
+                  //     let _key = entry[0], _val = entry[1];
+                  //     _entity[_key] = _val;
+                  // })
+                  _sourceState = setOne(_entity, _sourceState);
+                  return _entity;
+                })
+                .filter((entity) => !!entity);
               // 先斷開連結才刪除
               _values['delete'].map((id: string) => {
                 let _entity: Entity = selectRelevanceEntity(_sourceState, {
@@ -782,25 +835,50 @@ export class Relation {
               // _values.delete.length !== 0 ? _sourceState = removeMany(_values.delete, _sourceState) : null;
               _sourceState['_previousHash'] = _sourceState['_currentHash'];
               _sourceState['_currentHash'] = `settlement-${uuidV4()}`;
-              _stateClone[reducerSettlement['reducerName']] = _sourceState;
+              //   _stateClone[reducerSettlement['reducerName']] = _sourceState;
+              _sourceState.lastSettlement = reducerSettlement['lastSettlement'];
+              _stateClone[_sourceEntity] = _sourceState;
 
-              return reducerSettlement;
+              return _reducerSettlement;
             }),
+            concatWith(
+              of(_reducerSettlement).pipe(
+                mergeMap((_reducerSettlement) => {
+                  if (_values['create'].length !== 0) {
+                    return from(_values['create']).pipe(
+                      // concatMap(val => of(val).pipe(delay(1))),
+                      _commonRelationPipe()
+                    );
+                  } else {
+                    return of(null);
+                  }
+                })
+              ),
+              of(_reducerSettlement).pipe(
+                mergeMap((reducerSettlement) => {
+                  if (_values['update'].length !== 0) {
+                    return from(_values['update']).pipe(_commonRelationPipe());
+                  } else {
+                    return of(null);
+                  }
+                })
+              )
+            )
             // Do create first
-            mergeMap((reducerSettlement) => {
-              if (_values['create'].length !== 0) {
-                return from(_values['create']).pipe(_commonRelationPipe());
-              } else {
-                return of(null);
-              }
-            }),
-            mergeMap((reducerSettlement) => {
-              if (_values['update'].length !== 0) {
-                return from(_values['update']).pipe(_commonRelationPipe());
-              } else {
-                return of(null);
-              }
-            })
+            // mergeMap((reducerSettlement) => {
+            //   if (_values['create'].length !== 0) {
+            //     return from(_values['create']).pipe(_commonRelationPipe());
+            //   } else {
+            //     return of(null);
+            //   }
+            // }),
+            // mergeMap((reducerSettlement) => {
+            //   if (_values['update'].length !== 0) {
+            //     return from(_values['update']).pipe(_commonRelationPipe());
+            //   } else {
+            //     return of(null);
+            //   }
+            // })
           );
         } else {
           return of(null);

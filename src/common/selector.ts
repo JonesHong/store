@@ -53,7 +53,7 @@ export const createSelector = (
 
 export const selectRelevanceEntity = (
   state,
-  parameter: { key: string; value: string }
+  parameter: { key: string; value: any }
 ) => {
   let entities: [string, {}][] = Object.entries(state['entities']);
   let payload = [];
@@ -74,14 +74,21 @@ export const selectRelevanceEntity = (
         parameter['key'].length - 2
       );
       if (!!!entityValue[parameter['key']]) return;
-      return;
     }
+
     let typeofParameterKey = typeof entityValue[parameter['key']];
+    
     switch (typeofParameterKey) {
       case 'string':
         if (entityValue[parameter['key']] == parameter['value']) {
           payload.push(entityValue);
         }
+        if (
+          typeof parameter['value'] == 'object' &&
+          entityValue[parameter['key']] == parameter['value']['id']
+        )
+          payload.push(entityValue);
+        // console.log(111,22,entityValue[parameter['key']], parameter['value'], payload)
         break;
       case 'object':
         if (Array.isArray(entityValue[parameter['key']])) {
@@ -93,7 +100,6 @@ export const selectRelevanceEntity = (
                 (entity) => entity.id
               ))
             : (parameterIdList = entityValue[parameter['key']]);
-
           parameterIdList.map((item) => {
             switch (typeof item) {
               case 'string':

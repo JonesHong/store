@@ -268,7 +268,7 @@ const addMany = function (entities: Entity[], newState, options?: ToRedisOptions
 // - - - - - - - - - - - - -  - - - - - -
 // |           Set part start           |
 // - - - - - - - - - - - - -  - - - - - -
-const setMain = function (entity: {}, newState) {
+const setMain = function (entity: object, newState) {
   let entityId = entity['id'];
   let oldEntity = newState['entities'][entityId],
     newEntity: any = entity;
@@ -278,18 +278,23 @@ const setMain = function (entity: {}, newState) {
   // let oldEntity = newState['entities'][entityId].toObject(),
   //     newEntity = entity.toObject();
   if (_.isEqual(oldEntity, newEntity) == false) {
-    if (!!!oldEntity) newState['ids'].push(entityId);
+    if (!!!oldEntity) {
+      newState['ids'].push(entityId);
+      newState['lastSettlement']['create'][entityId] = entity;
+    }
+    else { 
+      newState['lastSettlement']['update'][entityId] = entity;
+    }
     // 舊的跟新的不一樣時，就以新的覆蓋舊的過去
     newState['entities'][entityId] = entity;
     newState['lastSettlement']['isChanged'] = true;
-    newState['lastSettlement']['update'][entityId] = entity;
     delete newState['lastSettlement']['delete'][entityId];
   } else {
     // 沒有不同，覆不覆蓋沒差
   }
   return newState;
 };
-// const setToRedis = async (entity: {}, newState, { reducerName, cacheService }: ToRedisOptions) => {
+// const setToRedis = async (entity: object, newState, { reducerName, cacheService }: ToRedisOptions) => {
 //     let entityId = entity['id'];
 //     let oldEntity = await cacheService.Redis.json.get(entityId),
 //         newEntity: any = entity;
@@ -306,7 +311,7 @@ const setMain = function (entity: {}, newState) {
 /**
  * Add or Replace one entity in the collection.
  */
-const setOne = function (entity: {}, newState) {
+const setOne = function (entity: object, newState) {
   if (Array.isArray(entity)) {
     // console.error(`[Error/setMain] SetOne ids need to be Object`);
     let _logger = Logger.error(
@@ -368,7 +373,7 @@ const setAll = function (entities: {}[], newState) {
 // |          Remove part start         |
 // - - - - - - - - - - - - -  - - - - - -
 const removeMain = function (id: string, newState) {
-  let _theEntity: {} = newState['entities'][id];
+  let _theEntity: object = newState['entities'][id];
   if (!!_theEntity) {
     delete newState['entities'][id];
     newState['ids'] = Object.keys(newState['entities']);
