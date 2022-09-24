@@ -1,5 +1,9 @@
 # 歷史版本紀錄
 
+### 1.1.6
+RelationStore最後的 last()要移除否則不會觸發
+### 1.1.5
+RelationStore被因為 concatWith觸發兩次，已改善
 ### 1.1.4
 
 修正以下  

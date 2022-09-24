@@ -1,6 +1,6 @@
 {
   "name": "mycena-store",
-  "version": "1.1.4",
+  "version": "1.1.6",
   "description": "For mirgation",
   "author": {
     "name": "JonesHong",
@@ -27,9 +27,9 @@
     "build:main": "ttsc -p tsconfig.json",
     "build:module": "ttsc -p tsconfig.module.json",
     "build:watch": "ttsc -p tsconfig.json -w",
-    "publish": "npm run build:main && npm publish --access public",
-    "unpublish": "npm unpublish <package_name>@<package_version>",
-    "deprecate": "npm deprecate <package>@<version> '<message>'",
+    "note:publish": "npm run build:main && npm publish --access public",
+    "note:unpublish": "npm unpublish <package_name>@<package_version>",
+    "note:deprecate": "npm deprecate <package>@<version> '<message>'",
     "fix": "run-s fix:*",
     "fix:prettier": "prettier \"src/**/*.ts\" --write",
     "fix:lint": "eslint src --ext .ts --fix",
