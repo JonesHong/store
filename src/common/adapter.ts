@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
 // import { inspect } from "util"
-import { Entity } from './entity';
+// import { Entity } from './entity';
 import { v4 as uuidv4 } from 'uuid';
 // import { RedisType, Cache } from "./cache";
 import { Action } from './action';
@@ -110,18 +110,18 @@ const getDEVInitialState = (state = {}) => {
   return payload;
 };
 
-const checkEntity = function (entity) {
-  if (!(entity instanceof Entity)) {
-    // console.error('[Error] Entity need to be a Class.');
-    let _logger = Logger.error(
-      "checkEntity",
-      `Entity need to be a Class.`
-    );
-    if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
-    return false;
-  }
-  return true;
-};
+// const checkEntity = function (entity) {
+//   if (!(entity instanceof Entity)) {
+//     // console.error('[Error] Entity need to be a Class.');
+//     let _logger = Logger.error(
+//       "checkEntity",
+//       `Entity need to be a Class.`
+//     );
+//     if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
+//     return false;
+//   }
+//   return true;
+// };
 /**
  * Clone State and Reset LastSettlement
  * @param state
@@ -145,7 +145,7 @@ const cloneAndReset = (state, action?: Action) => {
  * 後令壓前令
  * @param entities
  */
-const makeEntitiesUniqById = (entities: {[key: string]: any}[]) => {
+const makeEntitiesUniqById = (entities: { [key: string]: any }[]) => {
   let uniqEntitiesObject: { [id: string]: object } = entities.reduce(
     (acc, entity) => {
       acc[entity['id']] = entity;
@@ -186,13 +186,13 @@ const initialMain = (initialState, newState) => {
 // - - - - - - - - - - - - -  - - - - - -
 // |           ADD part start           |
 // - - - - - - - - - - - - -  - - - - - -
-const addMain = function (entity: Entity, newState) {
+const addMain = function (entity: object, newState) {
   let entityId = entity['id'];
   if (!!newState['entities'] && !!newState['entities'][entityId]) {
     // console.warn(`[Warning/addMain] Already exist. Ignore add request in ${entity._name}`);
     let _logger = Logger.warn(
       "addMain",
-      `Already exist. Ignore add request in ${entity._name}`,
+      `Already exist. Ignore add request in ${entity['id']}`,
       { 'isPrint': false }
     );
     if (envType == "browser" && _logger['options']['isPrint']) console.warn(_logger['_str']);
@@ -224,7 +224,7 @@ const addMain = function (entity: Entity, newState) {
 /**
  * Add one entity to the collection.
  */
-const addOne = function (entity: Entity, newState, options?: ToRedisOptions) {
+const addOne = function (entity: object, newState, options?: ToRedisOptions) {
   if (Array.isArray(entity)) {
     // console.error(`[Error/addOne] AddOne ids need to be Object`);
     let _logger = Logger.error(
@@ -240,7 +240,7 @@ const addOne = function (entity: Entity, newState, options?: ToRedisOptions) {
 /**
  * Add multiple entities to the collection.
  */
-const addMany = function (entities: Entity[], newState, options?: ToRedisOptions) {
+const addMany = function (entities: object[], newState, options?: ToRedisOptions) {
   if (!Array.isArray(entities)) {
     // console.error(`[Error/addMany] AddMany ids need to be Array`);
     let _logger = Logger.error(
@@ -252,7 +252,7 @@ const addMany = function (entities: Entity[], newState, options?: ToRedisOptions
   }
   // let newState = cloneAndReset(state);
   // await Promise.all(
-  makeEntitiesUniqById(entities).map((entity: Entity, index) => {
+  makeEntitiesUniqById(entities).map((entity: object, index) => {
     // if (!!options) newState = addToRedis(entity, newState, options);
     // else
     newState = addMain(entity, newState);
@@ -282,7 +282,7 @@ const setMain = function (entity: object, newState) {
       newState['ids'].push(entityId);
       newState['lastSettlement']['create'][entityId] = entity;
     }
-    else { 
+    else {
       newState['lastSettlement']['update'][entityId] = entity;
     }
     // 舊的跟新的不一樣時，就以新的覆蓋舊的過去
@@ -442,13 +442,13 @@ const removeAll = function (newState) {
 // - - - - - - - - - - - - -  - - - - - -
 // |          Update part start         |
 // - - - - - - - - - - - - -  - - - - - -
-const updateMain = function (entity: Entity, newState) {
+const updateMain = function (entity: object, newState) {
   let entityId = entity['id'];
   if (!!newState['entities'] && !newState['entities'][entityId]) {
     // console.warn(`[Warning/updateMain] Data isn't exist. Ignore update request:\n${entity.toObject()['id']}\n`);
     let _logger = Logger.warn(
       "updateMain",
-      `Data isn't exist. Ignore update request:\n${entity.toObject()['id']}\n`,
+      `Data isn't exist. Ignore update request:\n${entity['id']}\n`,
       { "isPrint": false }
     );
     if (envType == "browser" && _logger['options']['isPrint']) console.warn(_logger['_str']);
@@ -475,7 +475,7 @@ const updateMain = function (entity: Entity, newState) {
 /**
  * Update one entity in the collection. Supports partial updates.
  */
-const updateOne = function (entity: Entity, newState) {
+const updateOne = function (entity: object, newState) {
   if (Array.isArray(entity)) {
     // console.error(`[Error/updateOne] UpdateOne ids need to be Object`);
     let _logger = Logger.error(
@@ -493,7 +493,7 @@ const updateOne = function (entity: Entity, newState) {
 /**
  * Update multiple entities in the collection. Supports partial updates.
  */
-const updateMany = function (entities: Entity[], newState) {
+const updateMany = function (entities: object[], newState) {
   if (!Array.isArray(entities)) {
     // console.error(`[Error] UpdateMany ids need to be Array`);
     let _logger = Logger.error(
@@ -505,7 +505,7 @@ const updateMany = function (entities: Entity[], newState) {
   }
   // let newState = cloneAndReset(state);
   // await Promise.all(
-  makeEntitiesUniqById(entities).map((entity: Entity, index) => {
+  makeEntitiesUniqById(entities).map((entity: object, index) => {
     newState = updateMain(entity, newState);
     // if (index == entities.length - 1) { }
   });
@@ -519,7 +519,7 @@ const updateMany = function (entities: Entity[], newState) {
 // - - - - - - - - - - - - -  - - - - - -
 // |          Upsert part start         |
 // - - - - - - - - - - - - -  - - - - - -
-const upsertMain = function (entity: Entity, newState) {
+const upsertMain = function (entity: object, newState) {
   newState = updateMain(entity, newState);
   newState = addMain(entity, newState);
   // let entityId = entity['id'];
@@ -553,7 +553,7 @@ const upsertMain = function (entity: Entity, newState) {
 /**
  * Add or Update one entity in the collection.
  */
-const upsertOne = function (entity: Entity, newState) {
+const upsertOne = function (entity: object, newState) {
   if (Array.isArray(entity)) {
     // console.error(`[Error/upsertOne] UpsertOne ids need to be Object`);
     let _logger = Logger.error(
@@ -571,7 +571,7 @@ const upsertOne = function (entity: Entity, newState) {
 /**
  * Add or Update multiple entities in the collection.
  */
-const upsertMany = function (entities: Entity[], newState) {
+const upsertMany = function (entities: object[], newState) {
   if (!Array.isArray(entities)) {
     // console.error(`[Error/upsertMany] UpsertMany ids need to be Array`);
     let _logger = Logger.error(
@@ -583,7 +583,7 @@ const upsertMany = function (entities: Entity[], newState) {
   }
   // let newState = cloneAndReset(state);
   // await Promise.all(
-  makeEntitiesUniqById(entities).map((entity: Entity, index) => {
+  makeEntitiesUniqById(entities).map((entity: object, index) => {
     newState = upsertMain(entity, newState);
     // if (index == entities.length - 1) { }
   });

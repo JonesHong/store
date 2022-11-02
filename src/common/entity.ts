@@ -1,5 +1,4 @@
-import _ from 'lodash';
-import { asapScheduler } from 'rxjs';
+import * as _ from 'lodash';
 import { envType } from './env_checker';
 import { RelationDescription } from './interface/relation.interface';
 import { Logger } from './logger';
@@ -111,7 +110,6 @@ export abstract class Entity {
         !!options && 'target' in options
           // ? `_${options['target']['relationshipName']}`
            // For options offer
-          /** 111/11/01 multiple property to same entity */
            ? `_${options['source']['referencesField']}`
           : `_${one._name}`; // As default
       if (
@@ -220,7 +218,6 @@ export abstract class Entity {
       let _key =
         !!options && 'target' in options
           // ? this.relationKeyModify(`_${options['target']['relationshipName']}`) // For options offer
-          /** 111/11/01 multiple property to same entity */
           ? this.relationKeyModify(`_${options['target']['relationshipName']}`) // For options offer
           : `_${many._name}Map`; // As default
       let _subKey = many['id'];
