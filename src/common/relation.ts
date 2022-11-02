@@ -600,20 +600,40 @@ export class Relation {
             return from(_sourceRelationConfigs).pipe(
               map((_sourceRelationConfig) => {
                 const findTargetRelationConfig = () => {
-                  let _payload = _targetRelationConfigs.find((config, index) => {
+                  let _payload = _targetRelationConfigs.find(
+                    (config, index) => {
                       // console.log(329083038203, _configsIndex, index, config)
                       // console.log(_configsIndex !== index, config['targetEntity'] == `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`)
-                      if (_configsIndex !== index && config['targetEntity'] == `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`) {
-                          _configsIndex = index;
-                          return true;
+                      /** 111/11/01 multiple property to same entity */
+                      if(_configsIndex == index &&
+                        config['targetEntity'] ==
+                          `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
+                            1
+                          )}`)
+                      {
+                        _configsIndex+=1;
+                        return true;
                       }
-                  });
+                      else if (
+                        // _configsIndex !== -1 &&
+                        _configsIndex !== index &&
+                        config['targetEntity'] ==
+                          `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
+                            1
+                          )}`
+                      ) {
+                        _configsIndex = index;
+                        // console.log(44455, _configsIndex)
+                        return true;
+                      }
+                    }
+                  );
                   if (!_payload) {
-                      _configsIndex = -1;
-                      return findTargetRelationConfig();
+                    _configsIndex = -1;
+                    return findTargetRelationConfig();
                   }
-                  return _payload
-              }
+                  return _payload;
+                };
 
                 _targetEntity = `${_sourceRelationConfig[
                   'targetEntity'
@@ -622,7 +642,9 @@ export class Relation {
                 ].slice(1)}`;
                 _targetState = _stateClone[_targetEntity];
                 _targetRelationConfigs = config[_targetEntity];
+                // console.log(333333,config, _targetEntity, _sourceEntity)
                 _targetRelationConfig = findTargetRelationConfig();
+                // console.log(412,_targetRelationConfig)
 
                 let relevanceEntities = [];
                 switch (_sourceRelationConfig['type']) {
@@ -678,7 +700,7 @@ export class Relation {
                           source: _sourceRelationConfig,
                         })
                       : null;
-                      
+
                     // relevanceEntities.length !== 0 ? entity.addManyToOne(relevanceEntities) : null;
                     break;
                   }

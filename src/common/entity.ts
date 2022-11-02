@@ -109,7 +109,10 @@ export abstract class Entity {
     const method = (one: Entity) => {
       let _key =
         !!options && 'target' in options
-          ? `_${options['target']['relationshipName']}` // For options offer
+          // ? `_${options['target']['relationshipName']}`
+           // For options offer
+          /** 111/11/01 multiple property to same entity */
+           ? `_${options['source']['referencesField']}`
           : `_${one._name}`; // As default
       if (
         !!options &&
@@ -216,6 +219,8 @@ export abstract class Entity {
     const method = (many: Entity) => {
       let _key =
         !!options && 'target' in options
+          // ? this.relationKeyModify(`_${options['target']['relationshipName']}`) // For options offer
+          /** 111/11/01 multiple property to same entity */
           ? this.relationKeyModify(`_${options['target']['relationshipName']}`) // For options offer
           : `_${many._name}Map`; // As default
       let _subKey = many['id'];
