@@ -1,5 +1,7 @@
 # 歷史版本紀錄
 
+### 1.1.8
+修正entity中多個key同時指向同一 target entity 無法指定key
 ### 1.1.7
 修正entity中多個key同時指向同一 target entity 關係綁定失敗 ✔️
 ### 1.1.6

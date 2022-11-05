@@ -10,7 +10,7 @@ $ git clone repo
 
 ```sh
 # 1. 執行 compiler build
-$ npm run watch:build
+$ npm run build:watch
 
 # 1.5 記得修改 package.json 上的 version
 

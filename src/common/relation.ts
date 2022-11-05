@@ -128,8 +128,8 @@ export class Relation {
           return from(relationDescriptions).pipe(
             map((relationDescription) => {
               let fromEntity = `${entityName[0].toUpperCase()}${entityName.slice(
-                1
-              )}`,
+                  1
+                )}`,
                 toEntity = relationDescription['targetEntity'],
                 fromRelationshipName = relationDescription['relationshipName'],
                 toRelationshipName = '';
@@ -266,23 +266,23 @@ export class Relation {
       }
 
       let entityGetter = (index: number) => {
-        let halfStr = splitString[index],
-          matcher,
-          payload;
-        if (curlyBracketsTest(halfStr)) {
-          // User{employee} => User{ => User
-          matcher = halfStr.match(regexpList.entity);
-          if (matcher.length == 0) {
-            Logger.error(this._name, 'There goes wrong.');
+          let halfStr = splitString[index],
+            matcher,
+            payload;
+          if (curlyBracketsTest(halfStr)) {
+            // User{employee} => User{ => User
+            matcher = halfStr.match(regexpList.entity);
+            if (matcher.length == 0) {
+              Logger.error(this._name, 'There goes wrong.');
+            } else {
+              payload = matcher[0].slice(0, -1);
+            }
           } else {
-            payload = matcher[0].slice(0, -1);
+            // User
+            payload = halfStr;
           }
-        } else {
-          // User
-          payload = halfStr;
-        }
-        return payload;
-      },
+          return payload;
+        },
         relationshipNameGetter = (index: number) => {
           let halfStr = splitString[index],
             matcher,
@@ -436,10 +436,10 @@ export class Relation {
               // await Promise.all(
               sourceRelationConfigs.map(async (_sourceRelationConfig) => {
                 let targetEntity = `${_sourceRelationConfig[
-                  'targetEntity'
-                ][0].toLowerCase()}${_sourceRelationConfig[
-                  'targetEntity'
-                ].slice(1)}`,
+                    'targetEntity'
+                  ][0].toLowerCase()}${_sourceRelationConfig[
+                    'targetEntity'
+                  ].slice(1)}`,
                   sourceReducer = reducers[sourceEntity],
                   targetReducer = reducers[targetEntity];
 
@@ -516,9 +516,9 @@ export class Relation {
 
                         targetEntities.length !== 0
                           ? entityValue.addManyToOne(targetEntities, {
-                            target: targetReducerRelationConfigs,
-                            source: _sourceRelationConfig,
-                          })
+                              target: targetReducerRelationConfigs,
+                              source: _sourceRelationConfig,
+                            })
                           : null;
                         // targetEntities.length !== 0 ? entityValue.addManyToOne(targetEntities) : null;
                         break;
@@ -529,16 +529,16 @@ export class Relation {
                           key: `${targetReducerRelationConfigs['referencesEntity']}`,
                           value:
                             entityValue[
-                            targetReducerRelationConfigs['referencesEntity']
+                              targetReducerRelationConfigs['referencesEntity']
                             ],
                         });
                         // console.log(801928109, targetEntity,targetReducerRelationConfigs, `${targetReducerRelationConfigs['referencesEntity']}`, entityValue[targetReducerRelationConfigs['referencesEntity']])
                         // console.log(targetEntities, entityValue, _sourceRelationConfig, 329802380298)
                         targetEntities.length !== 0
                           ? entityValue.setOneToMany(targetEntities, {
-                            target: targetReducerRelationConfigs,
-                            source: _sourceRelationConfig,
-                          })
+                              target: targetReducerRelationConfigs,
+                              source: _sourceRelationConfig,
+                            })
                           : null;
                         // targetEntities.length !== 0 ? entityValue.setOneToMany(targetEntities) : null;
                         break;
@@ -596,39 +596,71 @@ export class Relation {
         mergeMap((entity: Entity) => {
           let entityId = entity['id'];
           if (!!_sourceRelationConfigs && _sourceRelationConfigs.length !== 0) {
-            let _configsIndex = -1;
+            let _configsIndex = 0;
             return from(_sourceRelationConfigs).pipe(
               map((_sourceRelationConfig) => {
                 const findTargetRelationConfig = () => {
-                  let _payload = _targetRelationConfigs.find(
+                  let _payloadIndex = _.findIndex(
+                    _targetRelationConfigs,
                     (config, index) => {
                       // console.log(329083038203, _configsIndex, index, config)
                       // console.log(_configsIndex !== index, config['targetEntity'] == `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`)
-                      if(_configsIndex == index &&
+                      if (
                         config['targetEntity'] ==
-                          `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
-                            1
-                          )}`)
-                      {
-                        _configsIndex+=1;
-                        return true;
-                      }
-                      else if (
-                        // _configsIndex !== -1 &&
-                        _configsIndex !== index &&
-                        config['targetEntity'] ==
-                          `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
-                            1
-                          )}`
+                        `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
+                          1
+                        )}`
                       ) {
-                        _configsIndex = index;
-                        // console.log(44455, _configsIndex)
+                        _configsIndex += 1;
                         return true;
-                      }
-                    }
+                      } else return false;
+                      // else if (
+                      //   // _configsIndex !== -1 &&
+                      //   _configsIndex !== index &&
+                      //   config['targetEntity'] ==
+                      //     `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
+                      //       1
+                      //     )}`
+                      // ) {
+                      //   _configsIndex = index;
+                      //   // console.log(44455, _configsIndex)
+                      //   return true;
+                      // }
+                    },
+                    _configsIndex
                   );
+                  let _payload =_targetRelationConfigs[_payloadIndex]
+
+                  // _targetRelationConfigs.find(
+                  //   (config, index) => {
+                  //     // console.log(329083038203, _configsIndex, index, config)
+                  //     // console.log(_configsIndex !== index, config['targetEntity'] == `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`)
+                  //     if (
+                  //       config['targetEntity'] ==
+                  //       `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
+                  //         1
+                  //       )}`
+                  //     ) {
+                  //       _configsIndex = index;
+                  //       console.log('_configsIndex: ', _configsIndex);
+                  //       return true;
+                  //     }
+                  //     // else if (
+                  //     //   // _configsIndex !== -1 &&
+                  //     //   _configsIndex !== index &&
+                  //     //   config['targetEntity'] ==
+                  //     //     `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
+                  //     //       1
+                  //     //     )}`
+                  //     // ) {
+                  //     //   _configsIndex = index;
+                  //     //   // console.log(44455, _configsIndex)
+                  //     //   return true;
+                  //     // }
+                  //   }
+                  // );
                   if (!_payload) {
-                    _configsIndex = -1;
+                    _configsIndex = 0;
                     return findTargetRelationConfig();
                   }
                   return _payload;
@@ -643,7 +675,7 @@ export class Relation {
                 _targetRelationConfigs = config[_targetEntity];
                 // console.log(333333,config, _targetEntity, _sourceEntity)
                 _targetRelationConfig = findTargetRelationConfig();
-                // console.log(412,_targetRelationConfig)
+                // console.log(412, _targetRelationConfig);
 
                 let relevanceEntities = [];
                 switch (_sourceRelationConfig['type']) {
@@ -654,8 +686,9 @@ export class Relation {
                     });
                     if (relevanceEntities.length == 0) {
                       let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                        }`;
+                      let key = `${
+                        sourceKey[0].toLowerCase() + sourceKey.slice(1)
+                      }`;
                       relevanceEntities = selectSourceRelevanceEntity(
                         _targetState,
                         { key: `${key}Id`, value: entity }
@@ -663,9 +696,9 @@ export class Relation {
                     }
                     relevanceEntities.length !== 0
                       ? entity.setOneToOne(relevanceEntities, {
-                        target: _targetRelationConfig,
-                        source: _sourceRelationConfig,
-                      })
+                          target: _targetRelationConfig,
+                          source: _sourceRelationConfig,
+                        })
                       : null;
                     // relevanceEntities.length !== 0 ? entity.setOneToOne(relevanceEntities) : null;
                     break;
@@ -683,8 +716,9 @@ export class Relation {
 
                     if (relevanceEntities.length == 0) {
                       let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                        }`;
+                      let key = `${
+                        sourceKey[0].toLowerCase() + sourceKey.slice(1)
+                      }`;
                       relevanceEntities = selectSourceRelevanceEntity(
                         _targetState,
                         { key: `${key}Id`, value: entity }
@@ -693,9 +727,9 @@ export class Relation {
 
                     relevanceEntities.length !== 0
                       ? entity.addManyToOne(relevanceEntities, {
-                        target: _targetRelationConfig,
-                        source: _sourceRelationConfig,
-                      })
+                          target: _targetRelationConfig,
+                          source: _sourceRelationConfig,
+                        })
                       : null;
 
                     // relevanceEntities.length !== 0 ? entity.addManyToOne(relevanceEntities) : null;
@@ -709,8 +743,9 @@ export class Relation {
                     });
                     if (relevanceEntities.length == 0) {
                       let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                        }`;
+                      let key = `${
+                        sourceKey[0].toLowerCase() + sourceKey.slice(1)
+                      }`;
                       relevanceEntities = selectSourceRelevanceEntity(
                         _targetState,
                         { key: `${key}s`, value: entity }
@@ -719,9 +754,9 @@ export class Relation {
 
                     relevanceEntities.length !== 0
                       ? entity.setOneToMany(relevanceEntities, {
-                        target: _targetRelationConfig,
-                        source: _sourceRelationConfig,
-                      })
+                          target: _targetRelationConfig,
+                          source: _sourceRelationConfig,
+                        })
                       : null;
                     // relevanceEntities.length !== 0 ? entity.setOneToMany(relevanceEntities) : null;
                     break;
@@ -734,8 +769,9 @@ export class Relation {
                     });
                     if (relevanceEntities.length == 0) {
                       let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                        }`;
+                      let key = `${
+                        sourceKey[0].toLowerCase() + sourceKey.slice(1)
+                      }`;
                       relevanceEntities = selectSourceRelevanceEntity(
                         _targetState,
                         { key: `${key}s`, value: entity }
@@ -743,9 +779,9 @@ export class Relation {
                     }
                     relevanceEntities.length !== 0
                       ? entity.addManyToMany(relevanceEntities, {
-                        target: _targetRelationConfig,
-                        source: _sourceRelationConfig,
-                      })
+                          target: _targetRelationConfig,
+                          source: _sourceRelationConfig,
+                        })
                       : null;
                     // relevanceEntities.length !== 0 ? entity.addManyToMany(relevanceEntities) : null;
                     break;
@@ -764,7 +800,10 @@ export class Relation {
     return store.settlement$.pipe(
       filter((reducerSettlement: settlement) => {
         return (
-          !!store && (!this._reducerSettlement || this._reducerSettlement['_currentHash'] !== reducerSettlement['_currentHash'])
+          !!store &&
+          (!this._reducerSettlement ||
+            this._reducerSettlement['_currentHash'] !==
+              reducerSettlement['_currentHash'])
         );
       }),
       // filter((reducerSettlement: settlement) => {
@@ -871,7 +910,7 @@ export class Relation {
               } else {
                 return of(null);
               }
-            }),
+            })
             // concatWith(
             //   of(_reducerSettlement).pipe(
             //     mergeMap((_reducerSettlement) => {

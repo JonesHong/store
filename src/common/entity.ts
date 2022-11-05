@@ -106,12 +106,17 @@ export abstract class Entity {
     options?: OptionsRelationDescription | BuildRelationOptions
   ) => {
     const method = (one: Entity) => {
+
+      // console.log(this._name,options)
+      // console.log(44444, `_${options['source']['referencesField']}`,`_${options['target']['relationshipName']}`, options)
       let _key =
         !!options && 'target' in options
-          // ? `_${options['target']['relationshipName']}`
+          ? `_${options['target']['relationshipName']}`
+          //  ? `_${options['source']['relationshipName']}`
            // For options offer
-           ? `_${options['source']['referencesField']}`
           : `_${one._name}`; // As default
+
+      // console.log(3333, options['targetKey'])
       if (
         !!options &&
         'targetKey' in options &&
@@ -217,8 +222,8 @@ export abstract class Entity {
     const method = (many: Entity) => {
       let _key =
         !!options && 'target' in options
-          // ? this.relationKeyModify(`_${options['target']['relationshipName']}`) // For options offer
           ? this.relationKeyModify(`_${options['target']['relationshipName']}`) // For options offer
+          // ? this.relationKeyModify(`_${options['source']['referencesField']}`) // For options offer
           : `_${many._name}Map`; // As default
       let _subKey = many['id'];
       // !options ?  theMany?.id : options['referencesField'];
