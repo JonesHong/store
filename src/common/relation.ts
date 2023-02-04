@@ -12,11 +12,17 @@ import {
 } from 'rxjs/operators';
 import { from, Observable, of, pipe, concatWith } from 'rxjs';
 import {
+  FromJDLMessage,
   IEntityRelationConfig,
+  InputRelationshipOption,
+  JDLObject,
   RelationDescription,
-  RelationshipByType,
+  RelationshipConfigTable,
+  RelationshipFromJDL,
+  RelationshipOptionMethod,
 } from './interface/relation.interface';
-import { settlement, Store } from './store';
+import { Store } from './store';
+import { Settlement } from "./interface/store.interface";
 import * as _ from 'lodash';
 import { Reducer } from './reducer';
 import { Entity } from './entity';
@@ -31,6 +37,8 @@ import {
 import { v4 as uuidV4 } from 'uuid';
 import { selectRelevanceEntity, selectSourceRelevanceEntity } from './selector';
 import { Logger } from './logger';
+import { DateTime } from 'luxon';
+import { Singleton } from './decoratios/singleton';
 
 /**
  * 『只要描述直接關聯的那條線的關係是什麼』
@@ -48,26 +56,7 @@ import { Logger } from './logger';
  * FOREIGN KEY ... REFERENCES
  * https://tinyurl.com/2bfse55t
  */
-// export const EntityRelationConfig: IEntityRelationConfig = {
-//     user,
-//     employee,
-//     group,
-//     department
-// };
 
-/**
- * 參考：
- * http://www.jhipster.pro/docs/jdl/relationships-cn
- */
-const OneToMany = [
-  // SQL: JOIN Employee employee with user.id = employee.userId
-  'User{employee(userId)} to Employee{user(id)}',
-  'User{playAs(userId)} to Employee{belongTo(id)}',
-];
-const ManyToOne = [
-  // SQL: JOIN Employee employee with user.id = employee.userId
-  'Employee{user(id)} to User{employee(userId)}',
-];
 
 /**
  * 要用這有個前提
@@ -78,16 +67,11 @@ const ManyToOne = [
  *
  * ＊修正一下：應該是 neo4j cypher要參照此 config
  */
-export class Relation {
+@Singleton
+class _Relation {
   private _name = 'Relation';
-  private static instance: Relation;
-  public static getInstance(): Relation {
-    if (!Relation.instance) {
-      Relation.instance = new Relation();
-    }
-
-    return Relation.instance;
-  }
+  private static instance: _Relation;
+  public static getInstance: () => _Relation;
 
   /**
    * Example:
@@ -97,14 +81,33 @@ export class Relation {
    * JobHistory{employee} to Employee
    * }
    */
-  RelationshipByType: RelationshipByType = {
+  private _RelationshipFromJDL: RelationshipFromJDL = {
     OneToOne: new Set(),
     OneToMany: new Set(),
     ManyToOne: new Set(),
     ManyToMany: new Set(),
   };
-  RelationshipByEntity: { [Entity: string]: RelationDescription[] } = {};
+  private _RelationshipConfigTable: RelationshipConfigTable = {};
 
+
+  public get RelationshipFromJDL() {
+    return this._RelationshipFromJDL
+  }
+
+  public set RelationshipFromJDL(RelationshipFromJDL: RelationshipFromJDL) {
+    this._RelationshipFromJDL = RelationshipFromJDL;
+    this.fromJDL(RelationshipFromJDL);
+  }
+
+  public get RelationshipConfigTable() {
+    return this._RelationshipConfigTable
+  }
+  public set RelationshipConfigTable(RelationshipConfigTable: RelationshipConfigTable) {
+    this._RelationshipConfigTable = RelationshipConfigTable;
+  }
+
+
+  private constructor() { }
   // public  _relationConfig: IEntityRelationConfig;
   // public  set relationConfig(config: IEntityRelationConfig) {
   //     Relation.relationConfig = config;
@@ -118,44 +121,44 @@ export class Relation {
    * https://www.jhipster.tech/managing-relationships/
    */
   toJDLFormat(config: IEntityRelationConfig) {
-    let entitiesConfig = Object.entries(config);
-    let relationshipByType = _.cloneDeep(this.RelationshipByType);
-    from(entitiesConfig)
-      .pipe(
-        mergeMap((entityConfig) => {
-          let entityName = entityConfig[0], // key
-            relationDescriptions = entityConfig[1]; // value
-          return from(relationDescriptions).pipe(
-            map((relationDescription) => {
-              let fromEntity = `${entityName[0].toUpperCase()}${entityName.slice(
-                  1
-                )}`,
-                toEntity = relationDescription['targetEntity'],
-                fromRelationshipName = relationDescription['relationshipName'],
-                toRelationshipName = '';
+    // let entitiesConfig = Object.entries(config);
+    // let RelationshipFromJDL = _.cloneDeep(this.RelationshipFromJDL);
+    // from(entitiesConfig)
+    //   .pipe(
+    //     mergeMap((entityConfig) => {
+    //       let entityName = entityConfig[0], // key
+    //         relationDescriptions = entityConfig[1]; // value
+    //       return from(relationDescriptions).pipe(
+    //         map((relationDescription) => {
+    //           let fromEntity = `${entityName[0].toUpperCase()}${entityName.slice(
+    //             1
+    //           )}`,
+    //             toEntity = relationDescription['targetEntity'],
+    //             fromRelationshipName = relationDescription['relationshipName'],
+    //             toRelationshipName = '';
 
-              switch (relationDescription['type']) {
-                case 'OneToOne':
-                case 'OneToMany': {
-                  toRelationshipName = `{${relationDescription['referencesEntity']}}`;
-                  break;
-                }
-                case 'ManyToOne':
-                case 'ManyToMany': {
-                  // as usual
+    //           switch (relationDescription['type']) {
+    //             case 'OneToOne':
+    //             case 'OneToMany': {
+    //               toRelationshipName = `{${relationDescription['referencesEntity']}}`;
+    //               break;
+    //             }
+    //             case 'ManyToOne':
+    //             case 'ManyToMany': {
+    //               // as usual
 
-                  toRelationshipName = `{${fromEntity}(${relationDescription['referencesField']})}`;
-                  break;
-                }
-              }
-              let relationStr = `${fromEntity}{${fromRelationshipName}} to ${toEntity}${toRelationshipName}`;
-              relationshipByType[relationDescription['type']].add(relationStr);
-            })
-          );
-        })
-      )
-      .subscribe();
-    return relationshipByType;
+    //               toRelationshipName = `{${fromEntity}(${relationDescription['referencesField']})}`;
+    //               break;
+    //             }
+    //           }
+    //           let relationStr = `${fromEntity}{${fromRelationshipName}} to ${toEntity}${toRelationshipName}`;
+    //           RelationshipFromJDL[relationDescription['type']].add(relationStr);
+    //         })
+    //       );
+    //     })
+    //   )
+    //   .subscribe();
+    // return RelationshipFromJDL;
   }
   /**
    * Regexp with string match or matchAll.
@@ -167,21 +170,25 @@ export class Relation {
    * referenceDisplay:  (id
    *
    */
-  regexpList = {
-    JDLFormatBasic: new RegExp(/.* to .*/g),
-    curlyBrackets: new RegExp(/.+\{.*\}.*/g), // { } 大括號
-    parentheses: new RegExp(/.+\(.*\).*/g), // ( ) 小括號
-    entity: new RegExp(/[\w]+\{/g),
-    relationshipName: new RegExp(/\{[\w]+/g),
-    referenceDisplay: new RegExp(/\([\w]+/g),
+  regexpMap = {
+    JDLFormatBasic: new RegExp(/.* to .*/), // 一定要符合
+    JDLFormatWith: new RegExp(/.* with .*/), // 尚未支援，不能符合
+    JDLFormatRequired: new RegExp(/.* required\}.*/), // 尚未支援，不能符合
+    JDLCurlyBrackets: new RegExp(/.+\{.*\}.*/), // { } 檢查大括號
+    JDLCurlyBracketsRorL: new RegExp(/(\{|\})/g), // { or } 檢查大括號
+    JDLParentheses: new RegExp(/.+\(.*\).*/), // ( ) 檢查小括號
+    JDLParenthesesRorL: new RegExp(/(\(|\))/g), // ( or ) 檢查小括號
+    JDLEntity: new RegExp(/[\w]+(\{)?/),
+    JDLRelationshipName: new RegExp(/\{[\w]+/),
+    JDLReferenceDisplay: new RegExp(/\([\w]+/),
   };
   /**
    *
-   * @param RelationshipByType
+   * @param RelationshipFromJDL
    * @returns
    *
    * e.g.
-   * RelationshipByType {
+   * RelationshipFromJDL {
    *     OneToMany: Set(["User{employeeMap(userId)} to Employee{user(id)}"])
    * }
    * ### It will turn into
@@ -194,384 +201,294 @@ export class Relation {
    *     }
    * ]
    */
-  fromJDL(RelationshipByType: RelationshipByType) {
-    let relationTypeEntities: [string, Set<string>][] =
-      Object.entries(RelationshipByType);
-    let relationshipByEntity = _.cloneDeep(this.RelationshipByEntity);
-    const regexpMatcher = (str: string) => {
-      let regexpList = this.regexpList;
-      let isPassBasic = regexpList.JDLFormatBasic.test(str);
-      regexpList.JDLFormatBasic.lastIndex = 0;
-      if (!isPassBasic) {
-        Logger.error(
-          this._name,
-          `Syntax is wrong.\nPlease make sure there is " to " in this syntax.`
-        );
-        // console.error(
-        //     `Syntax is wrong.\n` +
-        //     `Please make sure there is " to " in this syntax.`
-        // )
-        return null;
-      }
-      /**
-       * 從最簡單的 ['User', 'Employee']
-       * 稍微複雜的 ['User', 'Employee{user}']
-       * 一直到最長的 ['User{employee(userId)}', 'Employee{user(id)}']
-       * 用 split將 from跟 to切開
-       */
-      let splitString = str.split(' to '),
-        curlyBracketsTest = (someStr) => {
-          regexpList.curlyBrackets.lastIndex = 0;
-          return regexpList.curlyBrackets.test(someStr);
-        },
-        parenthesesTest = (someStr) => {
-          regexpList.parentheses.lastIndex = 0;
-          return regexpList.parentheses.test(someStr);
-        },
-        isBracketLegal = (() => {
-          let payload = true;
-          // await Promise.all(
-          splitString.map((halfStr) => {
-            if (!!payload) {
-              payload =
-                (curlyBracketsTest(halfStr) && parenthesesTest(halfStr)) ||
-                (curlyBracketsTest(halfStr) && !parenthesesTest(halfStr)) ||
-                (!curlyBracketsTest(halfStr) && !parenthesesTest(halfStr));
-            }
-          });
-          // );
-          return payload;
-        })();
-      if (splitString.length !== 2) {
-        Logger.error(
-          this._name,
-          `Syntax is wrong.\nPlease check fromEntity or toEntity.`
-        );
-        // console.error(
-        //     `Syntax is wrong.\n` +
-        //     `Please check fromEntity or toEntity.`
-        // );
-        return null;
-      }
-      if (!isBracketLegal) {
-        Logger.error(
-          this._name,
-          `Brackets are wrong.\nMake sure to have only curlyBrackets or both curlyBrackets and parentheses.`
-        );
-        // console.error(
-        //     `Brackets are wrong.\n` +
-        //     `Make sure to have only curlyBrackets or both curlyBrackets and parentheses.`
-        // )
-        return null;
-      }
+  fromJDL = (relationshipFromJDL: RelationshipFromJDL, options?: { isTreatSameManyToOneAndOneToMany: boolean }) => {
+    // SQL: JOIN Employee employee with user.id = employee.userId
+    let relationshipFromJDLEntities: [string, Set<string>][] = Object.entries(relationshipFromJDL);
+    let _MessageMap: Map<string, FromJDLMessage[]> = new Map();
+    let mainAccumulator: RelationshipConfigTable = {};
+    const setMessageMap = (relationshipFromJDL, fromJDLMessage: FromJDLMessage) => {
+      let now = DateTime.now();
+      fromJDLMessage['dateTimeString'] = now.toFormat("yyyy-MM-dd HH:mm:ss");
+      if (!_MessageMap.has(relationshipFromJDL))
+        _MessageMap.set(relationshipFromJDL, []);
+      let _message = _MessageMap.get(relationshipFromJDL);
+      _message.push(fromJDLMessage);
+    };
 
-      let entityGetter = (index: number) => {
-          let halfStr = splitString[index],
-            matcher,
-            payload;
-          if (curlyBracketsTest(halfStr)) {
-            // User{employee} => User{ => User
-            matcher = halfStr.match(regexpList.entity);
-            if (matcher.length == 0) {
-              Logger.error(this._name, 'There goes wrong.');
-            } else {
-              payload = matcher[0].slice(0, -1);
-            }
-          } else {
-            // User
-            payload = halfStr;
+    /**
+     * e.g.  
+     * from:  
+     * jdlString="Group{departmentMap(groupId)} to Department{group(id)}";  
+     * 
+     * to:  
+     * {  
+     *     fromDisplayField: "groupId",  
+     *     fromEntityString: "Group",  
+     *     fromRelationName: "departmentMap",  
+     *     toDisplayField: "id",  
+     *     toEntityString: "Department",  
+     *     toRelationName: "group"  
+     * }
+     */
+    const JDLStringToObjectPipe = () => pipe(
+      map((jdlString: string) => {
+        /**
+         * Employee to Job{employee}
+         * JobHistory{job} to Job
+         * Group{departmentMap(groupId)} to Department{group(id)}
+         */
+        if (this.regexpMap['JDLFormatBasic'].test(jdlString) === false) {
+          setMessageMap(jdlString, { type: "error", description: "isNotMatchJDLFormatBasic" });
+          return;
+        }
+        if (this.regexpMap['JDLFormatWith'].test(jdlString) === true) {
+          setMessageMap(jdlString, { type: "error", description: "isNotSupportedWith" });
+          return;
+        }
+        if (this.regexpMap['JDLFormatRequired'].test(jdlString) === true) {
+          setMessageMap(jdlString, { type: "error", description: "isNotSupportedRequired" });
+          return;
+        }
+        /**
+           * 從最簡單的 ['User', 'Employee']
+           * 稍微複雜的 ['User', 'Employee{user}']
+           * 一直到最長的 ['User{employee(userId)}', 'Employee{user(id)}']
+           * 用 split將 from跟 to切開
+           */
+        let splitJDLString = jdlString.split(" to ");
+        let payload: JDLObject = {
+          fromEntityString: null, fromRelationName: null, fromDisplayField: 'id',
+          toEntityString: null, toRelationName: null, toDisplayField: 'id'
+        };
+        let testJDLFormat = (string, regexpKey): boolean => {
+          if (!!!(regexpKey in this.regexpMap)) {
+            console.error(`regexpKey: ${regexpKey} is not in:\n`, this.regexpMap)
+            return;
           }
-          return payload;
-        },
-        relationshipNameGetter = (index: number) => {
-          let halfStr = splitString[index],
-            matcher,
-            payload;
-          if (curlyBracketsTest(halfStr)) {
-            // User{employee} => {employee => employee
-            matcher = halfStr.match(regexpList.relationshipName);
-            if (matcher.length == 0) {
-              Logger.error(this._name, 'There goes wrong.');
-              // console.error(
-              //     "There goes wrong."
-              // )
-            } else {
-              payload = matcher[0].slice(1);
-            }
+          return this.regexpMap[regexpKey].test(string);
+        };
+        splitJDLString.map((halfJDLString, index) => {
+          // e.g. halfJDLString = "Group{departmentMap(groupId)}";
+          let direction = index == 0 ? 'from' : 'to';
+          if (testJDLFormat(halfJDLString, "JDLEntity") === false) {
+            setMessageMap(jdlString, { type: "error", description: "isNotMatchJDLEntity" });
+            return;
           } else {
-            // User
-            payload = null;
+            payload[`${direction}EntityString`] = halfJDLString.match(this.regexpMap['JDLEntity'])[0] // Group{ or Group
+            if (payload[`${direction}EntityString`].includes("{"))
+              payload[`${direction}EntityString`] = payload[`${direction}EntityString`].slice(0, -1); // Group
           }
-          return payload;
-        },
-        referenceDisplayGetter = (index: number) => {
-          let halfStr = splitString[index],
-            matcher,
-            payload;
-          if (parenthesesTest(halfStr)) {
-            // User{employee(userId)} => (userId => userId
-            matcher = halfStr.match(regexpList.referenceDisplay);
-            if (matcher.length == 0) {
-              Logger.error(this._name, 'There goes wrong.');
-              // console.error(
-              //     "There goes wrong."
-              // )
-            } else {
-              payload = matcher[0].slice(1);
-            }
+
+          if (halfJDLString.match(this.regexpMap['JDLCurlyBracketsRorL'])?.length == 1) {
+            // e.g. Group{departmentMap(groupId) or Group departmentMap(groupId)}
+            // ["{"] or ["}"]
+            setMessageMap(jdlString, { type: "error", description: "syntaxErrorJDLCurlyBrackets" });
           } else {
-            // User or User{employee}
-            payload = null;
+            // e.g. Group{departmentMap(groupId)}
+            // ["{", "}"]
+            if (testJDLFormat(halfJDLString, "JDLCurlyBrackets") === true) {
+              // 找到 RelationName，直接拿來用
+              payload[`${direction}RelationName`] = halfJDLString.match(this.regexpMap['JDLRelationshipName'])[0] // {department
+                .slice(1); // department
+            }
+            else {
+              // 找不到 RelationName，將用另一半的 EntityString
+              // e.g. GroupUser
+              payload[`${direction}RelationName`] = splitJDLString[index == 0 ? 1 : 0].match(this.regexpMap['JDLEntity'])[0] // GroupUser{ or GroupUser
+              if (payload[`${direction}RelationName`].includes("{"))
+                payload[`${direction}RelationName`] = payload[`${direction}RelationName`].slice(0, -1); // GroupUser
+              payload[`${direction}RelationName`] = payload[`${direction}RelationName`][0].toLowerCase() + // g
+                payload[`${direction}RelationName`].slice(1); // roupUser
+              // setMessageMap(jdlString, {  type: "error", description:  "isNotMatchJDLCurlyBrackets" });
+            }
           }
-          return payload;
+          // else {
+          //     console.warn("1111.理論上不應該出現在這裡，需檢查一下");
+          //     console.log(halfJDLString, halfJDLString.match(this.regexpMap['JDLCurlyBracketsRorL']), testJDLFormat(halfJDLString, "JDLCurlyBrackets"))
+          //     setMessageMap(jdlString, {  type: "error", description:  "others" });
+          // }
+
+
+          if (halfJDLString.match(this.regexpMap['JDLParenthesesRorL'])?.length == 1) {
+            // e.g. Group{departmentMap groupId)} or Group{departmentMap(groupId}
+            // ["("] or [")"]
+            setMessageMap(jdlString, { type: "error", description: 'syntaxErrorJDLParentheses' });
+          } else {
+            // e.g. Group{departmentMap(groupId)}
+            // ["(", ")"]
+            if (testJDLFormat(halfJDLString, "JDLParentheses") === true) {
+              // 找到 DisplayField，直接拿來用
+              payload[`${direction}DisplayField`] = halfJDLString.match(this.regexpMap['JDLReferenceDisplay'])[0] // (groupId
+                .slice(1); // groupId
+            }
+            else {
+              // 找不到 DisplayField，預設是 id
+              //    setMessageMap(jdlString, {  type: "error", description:  "isNotMatchJDLParentheses" });
+            }
+
+          }
+          //  else {
+          //     console.warn("22222.理論上不應該出現在這裡，需檢查一下");
+          //     setMessageMap(jdlString, {  type: "error", description:  "others" });
+          // }
+        })
+
+        let jdlStringCOMB1 = `${payload['fromEntityString']}{${payload['fromRelationName']}(${payload['fromDisplayField']})}` +
+          " to " +
+          `${payload['toEntityString']}{${payload['toRelationName']}(${payload['toDisplayField']})}`;
+
+        let jdlStringCOMB2 = `${payload['fromEntityString']}{${payload['fromRelationName']}}` +
+          " to " +
+          `${payload['toEntityString']}{${payload['toRelationName']}}`;
+
+        let jdlStringCOMB3 = `${payload['fromEntityString']}` +
+          " to " +
+          `${payload['toEntityString']}`;
+        if ((jdlString !== jdlStringCOMB1) && (jdlString !== jdlStringCOMB2) && (jdlString !== jdlStringCOMB3)) {
+          setMessageMap(jdlString, { type: "error", description: "others" });
+          return;
+        }
+        return payload;
+      }),
+      filter(val => !!val)
+    );
+    /**
+    * EntityString as first key, RelationName as second key.  
+    * Turn it into @type InputRelationshipOption.  
+    * 
+    * e.g.   
+    * from:
+    * {  
+    *     fromDisplayField: "groupId",  
+    *     fromEntityString: "Group",  
+    *     fromRelationName: "departmentMap",  
+    *     toDisplayField: "id",  
+    *     toEntityString: "Department",  
+    *     toRelationName: "group"  
+    * } 
+    *  
+    * to:  
+    * "OneToMany"
+    * {  
+    *  "Group": {  
+    *      _relationshipOptions: [{
+    *          "departmentMap":{
+    *              inputEntityOptions:{relationName:"departmentMap",displayField:"groupId",method:"setRelationship"},
+    *              thisEntityOptions:{relationName:"group",displayField:"id",method:"addRelationships"},
+    *      }],
+    *      _relatedEntityMap: new Map().set("Department", {...}),
+    *      _relatedRelationNameSet: new Map().add("departmentMap", {...}),
+    *  },  
+    *  "Department":{  
+    *      _relationshipOptions: [{
+    *          "group":{
+    *              inputEntityOptions:{relationName:"group",displayField:"id",method:"addRelationships"},
+    *              thisEntityOptions:{relationName:"departmentMap",displayField:"groupId",method:"setRelationship"},
+    *      }],
+    *      _relatedEntityMap: new Map().set("Group", {...}),
+    *      _relatedRelationNameSet: new Map().add("group", {...}),
+    *  }  
+    * }  
+    * 
+    */
+    const JDLObjectToRelationshipConfigTablePipe = (key) => pipe(
+      reduce((accumulator: RelationshipConfigTable, jdlObject: JDLObject) => {
+        let switchCount = 0, keyClone = key;
+
+        const switchJDLObjectFromAndTo = () => {
+          if (switchCount > 1) return;
+          let direction = switchCount == 0 ? 'from' : 'to',
+            oppositeDirection = switchCount == 0 ? 'to' : 'from';
+          if (switchCount == 1) {
+            // e.g. key = "OneToMany";
+            keyClone = keyClone.split("To") // ["One","Many"]
+              .reverse() // ["Many","One"]
+              .join("To"); // keyClone = "ManyToOne"
+          }
+
+          let inputEntityOptionsMethod!: RelationshipOptionMethod,
+            thisEntityOptionsMethod!: RelationshipOptionMethod;
+          switch (keyClone) {
+            case "OneToOne": {
+              inputEntityOptionsMethod = "setRelationship";
+              thisEntityOptionsMethod = "setRelationship";
+            }
+              break;
+            case "OneToMany": {
+              inputEntityOptionsMethod = "addRelationships";
+              thisEntityOptionsMethod = "setRelationship";
+
+            }
+              break;
+            case "ManyToOne": {
+              inputEntityOptionsMethod = "setRelationship";
+              thisEntityOptionsMethod = "addRelationships";
+            }
+              break;
+            case "ManyToMany": {
+              inputEntityOptionsMethod = "addRelationships";
+              thisEntityOptionsMethod = "addRelationships";
+            }
+              break;
+
+            default:
+              break;
+          }
+          if (!!!accumulator[jdlObject[`${direction}EntityString`]]) {
+            accumulator[jdlObject[`${direction}EntityString`]] = {
+              _relationshipOptions: [],
+              _relatedEntityMap: new Map(),
+              _relatedRelationNameMap: new Map(),
+            }
+          }
+          let { _relationshipOptions, _relatedEntityMap, _relatedRelationNameMap } = accumulator[jdlObject[`${direction}EntityString`]];
+
+          let tempRelationshipOption: InputRelationshipOption = {
+            inputEntityOptions: {
+              relationName: jdlObject[`${direction}RelationName`],
+              displayField: jdlObject[`${direction}DisplayField`],
+              method: inputEntityOptionsMethod
+            },
+            thisEntityOptions: {
+              relationName: jdlObject[`${oppositeDirection}RelationName`],
+              displayField: jdlObject[`${oppositeDirection}DisplayField`],
+              method: thisEntityOptionsMethod
+            }
+          };
+          _relationshipOptions.push(tempRelationshipOption);
+          _relatedEntityMap.set(jdlObject[`${oppositeDirection}EntityString`], tempRelationshipOption);
+          _relatedRelationNameMap.set(jdlObject[`${direction}RelationName`], tempRelationshipOption);
+
+          switchCount++;
+          switchJDLObjectFromAndTo();
         };
 
-      return {
-        fromEntity: entityGetter(0),
-        fromRelationshipName: relationshipNameGetter(0),
-        fromReferenceDisplay: referenceDisplayGetter(0),
-        toEntity: entityGetter(1),
-        toRelationshipName: relationshipNameGetter(1),
-        toReferenceDisplay: referenceDisplayGetter(1),
-      };
-    };
-    from(relationTypeEntities)
-      .pipe(
-        mergeMap((relationTypeEntity) => {
-          let relationType = relationTypeEntity[0],
-            relationSet = relationTypeEntity[1];
-          return from(relationSet).pipe(
-            map((_sourceRelationConfig) => {
-              let {
-                fromEntity,
-                fromRelationshipName,
-                fromReferenceDisplay,
-                toEntity,
-                toRelationshipName,
-                toReferenceDisplay,
-              } = regexpMatcher(_sourceRelationConfig);
-              let payload: any = {
-                targetEntity: toEntity,
-                relationshipName: toRelationshipName,
-                type: relationType,
-              };
-              switch (relationType) {
-                case 'OneToOne':
-                case 'OneToMany': {
-                  payload['referencesEntity'] = toReferenceDisplay;
-                  break;
-                }
-                case 'ManyToOne':
-                case 'ManyToMany': {
-                  payload['referencesField'] = toReferenceDisplay;
-                  break;
-                }
-              }
-
-              let renameFromEntity = `${fromEntity[0].toLowerCase()}${fromEntity.slice(
-                1
-              )}`;
-              if (!relationshipByEntity[renameFromEntity])
-                relationshipByEntity[renameFromEntity] = [];
-              relationshipByEntity[renameFromEntity].push(payload);
-              return payload;
-            })
-          );
-        })
-      )
-      .subscribe();
-    return relationshipByEntity;
-  }
-
-  /**
-   * "Not Finish yet."
-   * It only add new _sourceRelationConfig.
-   *
-   * @param entityRelation
-   * Need to be ware the type.
-   */
-  //  addRelationToConfig(newRelations: IEntityRelationConfig) {
-  //     for (const entityName in newRelations) {
-  //         if (!this._relationConfig[entityName])
-  //             this._relationConfig[entityName] = [];
-  //         for (const _sourceRelationConfig of newRelations[entityName]) {
-  //             if (this._relationConfig[entityName].find(des => des['relationshipName'] == _sourceRelationConfig['relationshipName'] && des['type'] == _sourceRelationConfig['type'])) {
-
-  //             }
-  //         }
-  //     }
-  //     // this.config$.next(EntityRelationConfig);
-  // }
-  //  count = 0
-  /**
-   * version 0.0.1
-   * 跑過 store全部 reducer下的 entity
-   * 根據關係設定檔去綁關係
-   * 下個版本引進 lastSettlement
-   *
-   * @param store
-   * @param options
-   * @returns
-   */
-  public getStoreWithRelation_v1<initialState, Reducers>(
-    store: Store<initialState, Reducers>,
-    options: { config: IEntityRelationConfig }
-  ): Observable<any> {
-    let storeClone;
-    return store.state$.pipe(
-      // State build _sourceRelationConfig with options.config
-      mergeMap((state) => {
-        storeClone = null;
-        storeClone = _.cloneDeep(store);
-        let reducers = storeClone.reducers;
-
-        return from(Object.entries(storeClone.state)).pipe(
-          reduce((totalState, nextStateEntry: [string, Reducer<any, any>]) => {
-            let sourceEntity = nextStateEntry[0], // e.g.: user
-              sourceState: any = nextStateEntry[1]; // e.g.: {ids:[], entities:{}}
-            let sourceRelationConfigs = options['config'][sourceEntity];
-            // find the specific config for the sourceState
-            if (!!sourceRelationConfigs) {
-              // for (const _sourceRelationConfig of sourceRelationConfigs)
-              // await Promise.all(
-              sourceRelationConfigs.map(async (_sourceRelationConfig) => {
-                let targetEntity = `${_sourceRelationConfig[
-                    'targetEntity'
-                  ][0].toLowerCase()}${_sourceRelationConfig[
-                    'targetEntity'
-                  ].slice(1)}`,
-                  sourceReducer = reducers[sourceEntity],
-                  targetReducer = reducers[targetEntity];
-
-                let targetReducerRelationConfigs = options['config'][
-                  targetEntity
-                ].find(
-                  (config) =>
-                    config['targetEntity'] ==
-                    `${sourceEntity[0].toUpperCase()}${sourceEntity.slice(1)}`
-                );
-                let regexForMany = new RegExp('ManyTo');
-                let isMatchMany = regexForMany.test(
-                  _sourceRelationConfig['type']
-                );
-
-                // Go through forEach entities in the reducer.
-                if (!targetReducer) {
-                  Logger.error(
-                    this._name,
-                    `The reducer(${targetEntity}) is not in store.`
-                  );
-                  // console.error(`[Error/Relation] The reducer(${targetEntity}) is not in store.`);
-                }
-                if (!targetReducerRelationConfigs) {
-                  Logger.error(
-                    this._name,
-                    `The relationConfig of ${targetEntity} is not found.`
-                  );
-                  // console.error(`[Error/Relation] The relationConfig of ${targetEntity} is not found.`);
-                } else {
-                  let sourceStateEntries: [string, Entity][] = Object.entries(
-                    sourceState['entities']
-                  );
-                  // await Promise.all(
-                  sourceStateEntries.map((entity) => {
-                    let entityId = entity[0], // e.g.: "user-1"
-                      entityValue = entity[1]; // e.g.: {id:"user-1", name:"Jones"}
-                    /**
-                     * 如果 當前這個 Entity(我)對另一個 Entity(他)的關係是：
-                     *
-                     * * OneToOne
-                     * 我以我的 id去他的 Reducer找符合條件的 entities（只會找到一個）
-                     * 找到以後再以 setOneToMany把他加進來
-                     *
-                     * * OneToMany
-                     * 我以我的 id去他的 Reducer找符合條件的 entities（會找到一或複數個）
-                     * 找到以後再以 addManyToOne把他們加進來
-                     *
-                     * * ManyToOne
-                     * 我以我的 id去他的 Reducer找符合條件的 entities（只會找到一個）
-                     * 找到以後再以 setOneToMany把他加進來
-                     */
-                    let targetEntities = [];
-                    // if (!!targetReducerRelationConfigs)
-                    // 這邊寫錯了 selectRelevanceEntity({key:"groupId"})
-                    switch (_sourceRelationConfig['type']) {
-                      case 'OneToOne': {
-                        targetEntities = targetReducer.selectRelevanceEntity({
-                          key: `${_sourceRelationConfig['relationshipName']}Id`,
-                          value: entityId,
-                        });
-                        // targetEntities.length !== 0 ? entityValue.setOneToOne(targetEntities, { target: targetReducerRelationConfigs, source: _sourceRelationConfig }) : null;
-                        targetEntities.length !== 0
-                          ? entityValue.setOneToOne(targetEntities)
-                          : null;
-                        break;
-                      }
-                      case 'OneToMany': {
-                        // target是多的那邊
-                        targetEntities = targetReducer.selectRelevanceEntity({
-                          key: `${targetReducerRelationConfigs['referencesField']}`,
-                          value: entityId,
-                        });
-
-                        targetEntities.length !== 0
-                          ? entityValue.addManyToOne(targetEntities, {
-                              target: targetReducerRelationConfigs,
-                              source: _sourceRelationConfig,
-                            })
-                          : null;
-                        // targetEntities.length !== 0 ? entityValue.addManyToOne(targetEntities) : null;
-                        break;
-                      }
-                      case 'ManyToOne': {
-                        // 依照
-                        targetEntities = targetReducer.selectRelevanceEntity({
-                          key: `${targetReducerRelationConfigs['referencesEntity']}`,
-                          value:
-                            entityValue[
-                              targetReducerRelationConfigs['referencesEntity']
-                            ],
-                        });
-                        // console.log(801928109, targetEntity,targetReducerRelationConfigs, `${targetReducerRelationConfigs['referencesEntity']}`, entityValue[targetReducerRelationConfigs['referencesEntity']])
-                        // console.log(targetEntities, entityValue, _sourceRelationConfig, 329802380298)
-                        targetEntities.length !== 0
-                          ? entityValue.setOneToMany(targetEntities, {
-                              target: targetReducerRelationConfigs,
-                              source: _sourceRelationConfig,
-                            })
-                          : null;
-                        // targetEntities.length !== 0 ? entityValue.setOneToMany(targetEntities) : null;
-                        break;
-                      }
-                      case 'ManyToMany': {
-                        targetEntities = targetReducer.selectRelevanceEntity({
-                          key: `${_sourceRelationConfig['referencesField']}IdList`,
-                          value: entityId,
-                        });
-                        // targetEntities.length !== 0 ? entityValue.addManyToMany(targetEntities, { target: targetReducerRelationConfigs, source: _sourceRelationConfig }) : null;
-                        targetEntities.length !== 0
-                          ? entityValue.addManyToMany(targetEntities)
-                          : null;
-                        break;
-                      }
-                    }
-                    // sourceState['entities'][entityId] = entityValue;
-                  });
-                  // )
-                }
-              });
-              // )
-            }
-
-            totalState[sourceEntity] = sourceState;
-            return totalState;
-          }, {})
-        );
-      })
-      // mergeMap((statePromise: Promise<{}>) => from(statePromise)),
+        switchJDLObjectFromAndTo();
+        return accumulator;
+      }, mainAccumulator)
     );
+
+    from(relationshipFromJDLEntities).pipe(
+      mergeMap(entities => {
+        let key = entities[0], // "OneToOne" | "OneToMany" | "ManyToOne" | "ManyToMany"
+          value = entities[1];
+        // console.log(value)
+        return from(value).pipe(
+          // tap(val => console.log(1111,val)),
+          JDLStringToObjectPipe(),
+          JDLObjectToRelationshipConfigTablePipe(key),
+        )
+      }),
+      last()
+    )
+      .subscribe(val => {
+        // console.log("RelationshipConfigTable:\n", val);
+        console.log("_MessageMap:\n", _MessageMap);
+        this.RelationshipConfigTable = val;
+      })
   }
-  private _reducerSettlement: settlement;
+
+  private _reducerSettlement: Settlement;
   public StoreRelation<initialState, Reducers>(
     store: Store<initialState, Reducers>,
     config: IEntityRelationConfig
@@ -605,60 +522,16 @@ export class Relation {
                     (config, index) => {
                       // console.log(329083038203, _configsIndex, index, config)
                       // console.log(_configsIndex !== index, config['targetEntity'] == `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`)
-                      if (
-                        config['targetEntity'] ==
-                        `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
-                          1
-                        )}`
+                      if (config['targetEntity'] == `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`
                       ) {
                         _configsIndex += 1;
                         return true;
                       } else return false;
-                      // else if (
-                      //   // _configsIndex !== -1 &&
-                      //   _configsIndex !== index &&
-                      //   config['targetEntity'] ==
-                      //     `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
-                      //       1
-                      //     )}`
-                      // ) {
-                      //   _configsIndex = index;
-                      //   // console.log(44455, _configsIndex)
-                      //   return true;
-                      // }
                     },
                     _configsIndex
                   );
-                  let _payload =_targetRelationConfigs[_payloadIndex]
+                  let _payload = _targetRelationConfigs[_payloadIndex]
 
-                  // _targetRelationConfigs.find(
-                  //   (config, index) => {
-                  //     // console.log(329083038203, _configsIndex, index, config)
-                  //     // console.log(_configsIndex !== index, config['targetEntity'] == `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`)
-                  //     if (
-                  //       config['targetEntity'] ==
-                  //       `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
-                  //         1
-                  //       )}`
-                  //     ) {
-                  //       _configsIndex = index;
-                  //       console.log('_configsIndex: ', _configsIndex);
-                  //       return true;
-                  //     }
-                  //     // else if (
-                  //     //   // _configsIndex !== -1 &&
-                  //     //   _configsIndex !== index &&
-                  //     //   config['targetEntity'] ==
-                  //     //     `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(
-                  //     //       1
-                  //     //     )}`
-                  //     // ) {
-                  //     //   _configsIndex = index;
-                  //     //   // console.log(44455, _configsIndex)
-                  //     //   return true;
-                  //     // }
-                  //   }
-                  // );
                   if (!_payload) {
                     _configsIndex = 0;
                     return findTargetRelationConfig();
@@ -666,11 +539,7 @@ export class Relation {
                   return _payload;
                 };
 
-                _targetEntity = `${_sourceRelationConfig[
-                  'targetEntity'
-                ][0].toLowerCase()}${_sourceRelationConfig[
-                  'targetEntity'
-                ].slice(1)}`;
+                _targetEntity = `${_sourceRelationConfig['targetEntity'][0].toLowerCase()}${_sourceRelationConfig['targetEntity'].slice(1)}`;
                 _targetState = _stateClone[_targetEntity];
                 _targetRelationConfigs = config[_targetEntity];
                 // console.log(333333,config, _targetEntity, _sourceEntity)
@@ -686,9 +555,8 @@ export class Relation {
                     });
                     if (relevanceEntities.length == 0) {
                       let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${
-                        sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                      }`;
+                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
+                        }`;
                       relevanceEntities = selectSourceRelevanceEntity(
                         _targetState,
                         { key: `${key}Id`, value: entity }
@@ -696,9 +564,9 @@ export class Relation {
                     }
                     relevanceEntities.length !== 0
                       ? entity.setOneToOne(relevanceEntities, {
-                          target: _targetRelationConfig,
-                          source: _sourceRelationConfig,
-                        })
+                        target: _targetRelationConfig,
+                        source: _sourceRelationConfig,
+                      })
                       : null;
                     // relevanceEntities.length !== 0 ? entity.setOneToOne(relevanceEntities) : null;
                     break;
@@ -716,9 +584,8 @@ export class Relation {
 
                     if (relevanceEntities.length == 0) {
                       let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${
-                        sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                      }`;
+                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
+                        }`;
                       relevanceEntities = selectSourceRelevanceEntity(
                         _targetState,
                         { key: `${key}Id`, value: entity }
@@ -727,9 +594,9 @@ export class Relation {
 
                     relevanceEntities.length !== 0
                       ? entity.addManyToOne(relevanceEntities, {
-                          target: _targetRelationConfig,
-                          source: _sourceRelationConfig,
-                        })
+                        target: _targetRelationConfig,
+                        source: _sourceRelationConfig,
+                      })
                       : null;
 
                     // relevanceEntities.length !== 0 ? entity.addManyToOne(relevanceEntities) : null;
@@ -743,9 +610,8 @@ export class Relation {
                     });
                     if (relevanceEntities.length == 0) {
                       let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${
-                        sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                      }`;
+                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
+                        }`;
                       relevanceEntities = selectSourceRelevanceEntity(
                         _targetState,
                         { key: `${key}s`, value: entity }
@@ -754,9 +620,9 @@ export class Relation {
 
                     relevanceEntities.length !== 0
                       ? entity.setOneToMany(relevanceEntities, {
-                          target: _targetRelationConfig,
-                          source: _sourceRelationConfig,
-                        })
+                        target: _targetRelationConfig,
+                        source: _sourceRelationConfig,
+                      })
                       : null;
                     // relevanceEntities.length !== 0 ? entity.setOneToMany(relevanceEntities) : null;
                     break;
@@ -769,9 +635,8 @@ export class Relation {
                     });
                     if (relevanceEntities.length == 0) {
                       let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${
-                        sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                      }`;
+                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
+                        }`;
                       relevanceEntities = selectSourceRelevanceEntity(
                         _targetState,
                         { key: `${key}s`, value: entity }
@@ -779,9 +644,9 @@ export class Relation {
                     }
                     relevanceEntities.length !== 0
                       ? entity.addManyToMany(relevanceEntities, {
-                          target: _targetRelationConfig,
-                          source: _sourceRelationConfig,
-                        })
+                        target: _targetRelationConfig,
+                        source: _sourceRelationConfig,
+                      })
                       : null;
                     // relevanceEntities.length !== 0 ? entity.addManyToMany(relevanceEntities) : null;
                     break;
@@ -798,12 +663,12 @@ export class Relation {
     };
 
     return store.settlement$.pipe(
-      filter((reducerSettlement: settlement) => {
+      filter((reducerSettlement: Settlement) => {
         return (
           !!store &&
           (!this._reducerSettlement ||
             this._reducerSettlement['_currentHash'] !==
-              reducerSettlement['_currentHash'])
+            reducerSettlement['_currentHash'])
         );
       }),
       // filter((reducerSettlement: settlement) => {
@@ -963,4 +828,6 @@ export class Relation {
   }
 }
 
-export const RelationManager = Relation.getInstance();
+export const Relation = _Relation.getInstance();
+
+

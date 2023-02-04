@@ -1,11 +1,11 @@
-import { asapScheduler, BehaviorSubject, Observable, Subscription } from 'rxjs';
+import { asapScheduler, BehaviorSubject, delay, mergeMap, Observable, of, Subscription, take } from 'rxjs';
 import { Action } from './action';
 import { Reducer } from './reducer';
 import { createFeatureSelector } from './selector';
 import { Store } from './store';
 import { Effect } from './effect';
-import { IEntityRelationConfig, RelationshipByType } from './interface/relation.interface';
-import { RelationManager } from './relation';
+import { IEntityRelationConfig, RelationshipByType, RelationshipFromJDL, RelationshipConfigTable } from './interface/relation.interface';
+import { Relation } from './relation';
 import * as _ from 'lodash';
 // import { createClient, RedisClientOptions, RedisClientType, RedisDefaultModules, RedisModules, RedisScripts } from 'redis';
 // import { CacheService, RedisOptions } from "./cache";
@@ -13,18 +13,38 @@ import { Container } from 'inversify';
 import { Logger } from './logger';
 import { envType } from './env_checker';
 import { DateTime } from 'luxon';
+import { Singleton } from './decoratios/singleton';
 // import 'reflect-metadata';
 
 // export const CqrsContainer = new Container();
 // CqrsContainer.bind(AppService).toSelf();
 
-export class CqrsMain<initialState, Reducers> {
-  private _StoreState$: BehaviorSubject<initialState> = new BehaviorSubject(null);
+@Singleton
+class _Main {
+  private static instance: _Main;
+  public static getInstance: () => _Main;
+  private constructor() { }
+  private _isLogByFIle$: BehaviorSubject<boolean> = new BehaviorSubject(false);
+  public get isLogByFIle$() {
+    return this._isLogByFIle$.asObservable();
+  }
+  public get isLogByFIle() {
+    return this._isLogByFIle$.value;
+  }
+  // public readonly isLogByFIle: boolean = false;
+  public printMode: "dev" | "prod" = "dev";
+  public isUseEffect: boolean = false;
+
+
+
+}
+export const Main = _Main.getInstance();
+export class CQRS<initialState, Reducers> {
+  // private _StoreState$: BehaviorSubject<initialState> = new BehaviorSubject(null);
   private _Store: Store<initialState, Reducers>;
   private _StoreRelationSubs;
   // private _Actions$: BehaviorSubject<Action> = new BehaviorSubject(null);
-  private _StoreWithRelation$: BehaviorSubject<initialState> =
-    new BehaviorSubject(null);
+  private _StoreWithRelation$: BehaviorSubject<initialState> = new BehaviorSubject(null);
   private _StoreClone: Store<initialState, Reducers>;
   private _container = new Container();
   private _appModule;
@@ -32,13 +52,13 @@ export class CqrsMain<initialState, Reducers> {
   private _appModuleType: 'nest' | 'angular' | 'unit-test' | 'no-match';
 
   // private _eventsCache: Action[] = [];
-  private _relationConfig: IEntityRelationConfig;
-  private _relationshipByType: RelationshipByType = {
-    OneToOne: new Set(),
-    OneToMany: new Set(),
-    ManyToOne: new Set(),
-    ManyToMany: new Set(),
-  };
+  // private _relationConfig: IEntityRelationConfig;
+  // private _relationshipByType: RelationshipByType = {
+  //   OneToOne: new Set(),
+  //   OneToMany: new Set(),
+  //   ManyToOne: new Set(),
+  //   ManyToMany: new Set(),
+  // };
   public get container(): Container {
     return this._container;
   }
@@ -48,20 +68,14 @@ export class CqrsMain<initialState, Reducers> {
   public get appModuleType() {
     return this._appModuleType;
   }
-  public get relationConfig(): IEntityRelationConfig {
-    return this._relationConfig;
-  }
-  public get relationshipByType(): RelationshipByType {
-    return this._relationshipByType;
-  }
 
   public get Store(): Store<initialState, Reducers> {
     return this._Store;
   }
 
-  public get StoreSate(): Observable<initialState> {
-    return this._StoreState$;
-  }
+  // public get StoreSate(): Observable<initialState> {
+  //   return this._StoreState$;
+  // }
 
   public get StoreWithRelation() {
     return this._StoreWithRelation$;
@@ -76,10 +90,10 @@ export class CqrsMain<initialState, Reducers> {
     //     console.error("[Error/StoreWithRelation] RelationConfig doesn't exist.")
     //     return null
     // }
-    if (!!this._Store && !!this._relationConfig && !this._StoreRelationSubs) {
-      this._StoreRelationSubs = RelationManager.StoreRelation<initialState, Reducers>(this._Store, this._relationConfig).subscribe((data: initialState) => {
-        this._StoreWithRelation$.next(data);
-      });
+    if (!!this._Store && !!this.relationshipFromJDL && !this._StoreRelationSubs) {
+      // this._StoreRelationSubs = Relation.StoreRelation<initialState, Reducers>(this._Store, this.relationshipFromJDL).subscribe((data: initialState) => {
+      //   this._StoreWithRelation$.next(data);
+      // });
     }
     // let _Relation = Relation.getInstance()
     // console.log(328023098, this._Store)
@@ -95,12 +109,18 @@ export class CqrsMain<initialState, Reducers> {
   }
   private _isEffectLoadedSubscribe: Subscription;
   constructor() { }
-  setRelationConfig = (relationConfig): void => {
-    this._relationConfig = relationConfig;
-    this.StoreWithRelationSubs();
-  };
-  setRelationshipByType = (relationshipByType): void => {
-    this._relationshipByType = relationshipByType;
+  public get relationshipConfigTable(): RelationshipConfigTable {
+    return Relation.RelationshipConfigTable;
+  }
+  public get relationshipFromJDL(): RelationshipFromJDL {
+    return Relation.RelationshipFromJDL;
+  }
+  // setRelationshipConfigTable = (RelationshipConfigTable: RelationshipConfigTable): void => {
+  //   Relation.RelationshipConfigTable = RelationshipConfigTable;
+  // };
+  seRelationshipFromJDL = (RelationshipFromJDL: RelationshipFromJDL): void => {
+    Relation.RelationshipFromJDL = RelationshipFromJDL;
+    // this.Store.withRelation
   };
   /**
    *
@@ -178,16 +198,9 @@ export class CqrsMain<initialState, Reducers> {
         console.error(_logger['_str']);
       return null;
     }
-    this._Store = this.StoreMatchReducer(reducers);
-    // this._StoreClone = this.StoreMatchReducer(_.cloneDeep(reducers));
 
-    // console.log(1111111,this._Store._storeId);
-    // console.log(2222222,this._StoreClone._storeId);
-    this.initAfterStoreIsNew();
-  };
-  private StoreMatchReducer = (reducers) => {
+
     let store = new Store<initialState, Reducers>();
-    // console.log(this._Store)
     let reducersList: [string, Reducer<any, any>][] = Object.entries(reducers);
     let initialState: any = reducersList.reduce((res, reducerEntry) => {
       let _key = reducerEntry[0],
@@ -197,44 +210,57 @@ export class CqrsMain<initialState, Reducers> {
     }, {});
     store.setInitial(reducers, initialState);
     store.setMain(this);
-    // await Promise.all(
+
     reducersList.map((reducerEntry) => {
       let _key = reducerEntry[0],
         _reducer = reducerEntry[1];
       _reducer.setStore(store);
       _reducer.initialHandler();
     });
-    // )
-    return store;
+    this._Store = store;
+    // this._Store = this.StoreMatchReducer(reducers);
+    // this.StoreMatchReducer(reducers);
+    // this._StoreClone = this.StoreMatchReducer(_.cloneDeep(reducers));
+
+    this.AfterStoreIsInstantiated();
   };
-  private initAfterStoreIsNew() {
+  private AfterStoreIsInstantiated() {
     // asapScheduler.schedule(() => {
-    this._Store.subscribe((res) => {
-      this._StoreState$.next(res);
-    });
+    // this._Store.subscribe((res) => {
+    //   // this._StoreState$.next(res);
+    // });
     this.StoreWithRelationSubs();
     // }, 1000)
-    this._isEffectLoadedSubscribe = this.isEffectLoaded$.subscribe(
-      (isEffectLoaded) => {
-        this._Store.isReadyToDispatch$.next(isEffectLoaded);
-        // this._Store.getBroadcast().subscribe(res => {
-        //     this._Actions$.next(res);
-        // });
-        // this._StoreClone.isReadyToDispatch$.next(isEffectLoaded);
-        if (!!isEffectLoaded) {
-          // unsubscribe after 0.1s
-          asapScheduler.schedule(() => {
-            this._isEffectLoadedSubscribe.unsubscribe();
-          }, 500);
+    this._isEffectLoadedSubscribe = of({})
+      .pipe(
+        delay(1000),
+        mergeMap(() => this.isEffectLoaded$)
+      )
+      .subscribe(
+        (isEffectLoaded) => {
+          !!Main.isUseEffect ?
+            this._Store.isReadyToDispatch$.next(isEffectLoaded) : // 有使用 Effect
+            this._Store.isReadyToDispatch$.next(true);
+          // this._Store.getBroadcast().subscribe(res => {
+          //     this._Actions$.next(res);
+          // });
+          // this._StoreClone.isReadyToDispatch$.next(isEffectLoaded);
+
+          if (!Main.isUseEffect && !!isEffectLoaded) {
+            // unsubscribe after 0.5s
+            asapScheduler.schedule(() => {
+              this._isEffectLoadedSubscribe.unsubscribe();
+            }, 500);
+          }
         }
-      }
-    );
+      );
   }
-  effectRetryCount = 0;
-  effectRetryInterval = 100;
-  isEffectLoaded$ = new BehaviorSubject(false);
-  timeLabelSet = new Set([]);
+  private effectRetryCount = 0;
+  private effectRetryInterval = 100;
+  private isEffectLoaded$ = new BehaviorSubject(false);
+  private timeLabelSet = new Set([]);
   forRootEffects = (effects: any[]): void => {
+    Main.isUseEffect = true;
     let _beforeExec = DateTime.now();
     // let _timeLabel = '[Loaded] forRootEffects successfully.';
     // if (!this.timeLableSet.has(_timeLabel)) {

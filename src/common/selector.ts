@@ -77,7 +77,7 @@ export const selectRelevanceEntity = (
     }
 
     let typeofParameterKey = typeof entityValue[parameter['key']];
-    
+
     switch (typeofParameterKey) {
       case 'string':
         if (entityValue[parameter['key']] == parameter['value']) {
@@ -97,8 +97,8 @@ export const selectRelevanceEntity = (
 
           entityValue[parameter['key']].some(includesObj)
             ? (parameterIdList = entityValue[parameter['key']].map(
-                (entity) => entity.id
-              ))
+              (entity) => entity.id
+            ))
             : (parameterIdList = entityValue[parameter['key']]);
           parameterIdList.map((item) => {
             switch (typeof item) {
@@ -110,8 +110,7 @@ export const selectRelevanceEntity = (
               default:
                 Logger.error(
                   'selectRelevanceEntity',
-                  `There doesn't handle type(${typeof item}).\n${
-                    entityValue[parameter['key']]
+                  `There doesn't handle type(${typeof item}).\n${entityValue[parameter['key']]
                   }\n`
                 );
                 // console.error(
@@ -132,8 +131,7 @@ export const selectRelevanceEntity = (
       default:
         Logger.error(
           'selectRelevanceEntity',
-          `There doesn't handle type(${typeofParameterKey}).\n${
-            entityValue[parameter['key']]
+          `There doesn't handle type(${typeofParameterKey}).\n${entityValue[parameter['key']]
           }\n`
         );
         // console.error(
@@ -162,10 +160,7 @@ export const selectSourceRelevanceEntity = (
         `[Error/selectRelevanceEntity<${entity[0]}>] There is no ${parameter['key']} in this entity.`
       );
 
-      parameter['key'] = parameter['key'].substring(
-        0,
-        parameter['key'].length - 2
-      );
+      parameter['key'] = parameter['key'].substring(0, parameter['key'].length - 2);
       if (!!!parameter['value'][parameter['key']]) return;
     }
 
@@ -188,11 +183,9 @@ export const selectSourceRelevanceEntity = (
           let parmeterIdList;
           const includesObj = (element) => typeof element === 'object';
 
-          parameter['value'][parameter['key']].some(includesObj)
-            ? (parmeterIdList = parameter['value'][parameter['key']].map(
-                (entity) => entity.id
-              ))
-            : (parmeterIdList = parameter['value'][parameter['key']]);
+          parameter['value'][parameter['key']].some(includesObj) ?
+            (parmeterIdList = parameter['value'][parameter['key']].map((entity) => entity.id)) :
+            (parmeterIdList = parameter['value'][parameter['key']]);
 
           parmeterIdList.map((item) => {
             switch (typeof item) {
@@ -203,8 +196,7 @@ export const selectSourceRelevanceEntity = (
                 break;
               default:
                 console.error(
-                  `[Error/selectRelevanceEntity] There doesn't handle type(${typeof item}).\n${
-                    parameter['value'][parameter['key']]
+                  `[Error/selectRelevanceEntity] There doesn't handle type(${typeof item}).\n${parameter['value'][parameter['key']]
                   }\n`
                 );
                 break;
@@ -227,8 +219,7 @@ export const selectSourceRelevanceEntity = (
       //   break
       default:
         console.error(
-          `[Error/selectRelevanceEntity] There doesn't handle type(${typeofParameterKey}).\n${
-            parameter['value'][parameter['key']]
+          `[Error/selectRelevanceEntity] There doesn't handle type(${typeofParameterKey}).\n${parameter['value'][parameter['key']]
           }\n`
         );
         break;

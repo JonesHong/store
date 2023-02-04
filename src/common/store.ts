@@ -5,20 +5,18 @@ import { Broker } from "./broker";
 import { Action, AddMany, RemoveMany, SetMany } from "./action";
 import { Reducer } from "./reducer";
 import { createFeatureSelector } from "./selector";
-import { CqrsMain } from "./main";
-import { LastSettlement } from "./adapter";
+import { CQRS } from "./main";
+import { LastSettlement } from "./interface/adapter.interface";
+import { Settlement } from "./interface/store.interface";
 import { v4 as uuidv4 } from "uuid"
 import { filter, map } from "rxjs/operators";
+import { SettlementChanged } from "./pipes/_some.pipe";
+import { JDLObject, RelationshipConfig, RelationshipConfigTable } from "./interface/relation.interface";
+import { Entity } from "./entity";
+import { addMany } from "./adapter";
 // import { CacheService } from "./cache";
 
 
-const _name = "Store"
-export type settlement = {
-  reducerName: string;
-  _previousHash: string;
-  _currentHash: string;
-  lastSettlement: LastSettlement<any>;
-}
 /**
  * Split of writing functionality
  * Focus on reading repositories
@@ -27,12 +25,13 @@ export type settlement = {
  * 
  */
 export class Store<initialState, Reducers> extends Broker {
+  static isStoreCreated = false;
   // _name: string = "Store";
   _storeId = `store-${uuidv4()}`;
   private subscriptionMap: Map<string, Subscription> = new Map()
   private subscription: Subscription = new Subscription()
   // private _lastSettlement: settlement;
-  private _mainCqrs: CqrsMain<initialState, Reducers>;
+  private _CQRS: CQRS<initialState, Reducers>;
   private _reducers: Reducers;
   public get reducers() {
     return this._reducers
@@ -52,11 +51,11 @@ export class Store<initialState, Reducers> extends Broker {
   // public get reducerSettlement() {
   //   return this._settlement$.value;
   // }
-  private _settlement$: BehaviorSubject<settlement> = new BehaviorSubject(null);
+  private _settlement$: BehaviorSubject<Settlement> = new BehaviorSubject(null);
   public get settlement$() {
     return this._settlement$.asObservable()
       .pipe(
-        filter(lastSettlement => !!lastSettlement)
+        SettlementChanged(this._settlement$)
       );
   }
   // private _settlementsLogSize = 100;
@@ -77,8 +76,8 @@ export class Store<initialState, Reducers> extends Broker {
     })
   }
 
-  setMain(main: CqrsMain<initialState, Reducers>) {
-    this._mainCqrs = main;
+  setMain(main: CQRS<initialState, Reducers>) {
+    this._CQRS = main;
   }
   setInitial(reducers: Reducers, initialState: initialState) {
     this._reducers = reducers;
@@ -122,7 +121,7 @@ export class Store<initialState, Reducers> extends Broker {
       this._state = newState;
       this._state$.next(newState);
       // this._stateInstantiate = reducer.turnStateToEntities();
-      let _settlement: settlement = {
+      let _settlement: Settlement = {
         reducerName,
         _previousHash: state['_previousHash'],
         _currentHash: state['_currentHash'],
@@ -151,6 +150,52 @@ export class Store<initialState, Reducers> extends Broker {
   }
 
 
+
+  /**
+  //  * If MainCQRS seRelationshipFromJDL
+   * :Observable<initialState>
+   */
+  private buildRelationStore = () => {
+    // let { relationshipConfigTable } = this._CQRS;
+    if (!this._withRelation) this._withRelation = _.cloneDeep(this.state);
+    let StateClone = this._withRelation;
+    let JDLObject: JDLObject,
+      RelationshipConfigTable: RelationshipConfigTable,
+      SettlementClone: Settlement,
+      LastSettlementToValue: { create: any[]; update: any[]; delete: string[] },
+      theConfig: RelationshipConfig
+    // LastSettlementToEntity: { create: Entity[]; update: Entity[]; delete: string[] };
+
+    return this.settlement$.pipe(
+      filter((settlement) => !!this._CQRS && !!this._CQRS.relationshipConfigTable),
+      map(settlement => {
+        RelationshipConfigTable = this._CQRS.relationshipConfigTable;
+        SettlementClone = _.cloneDeep(settlement);
+        let { lastSettlement } = SettlementClone;
+        let { reducerName } = SettlementClone;
+        let theReducer: Reducer<any, any> = this.reducers[reducerName];
+        let theState = StateClone[reducerName];
+        theConfig = RelationshipConfigTable[reducerName];
+
+        LastSettlementToValue = {
+          create: Object.values(SettlementClone['lastSettlement']['create']),
+          update: Object.values(SettlementClone['lastSettlement']['update']),
+          delete: Object.values(SettlementClone['lastSettlement']['delete']),
+        };
+        let createEntities: Entity[] = theReducer.createEntities(LastSettlementToValue['create']);
+        LastSettlementToValue['create'].length !== 0 ? (theState = addMany(createEntities, theState)) : null;
+
+      })
+
+    );
+  }
+
+  private _withRelation: initialState;
+  private _withRelation$ = this.buildRelationStore();
+
+  public get withRelation$() {
+    return this._withRelation$
+  }
 }
 
 // interface StoreMain<initialState, Reducers> {
@@ -161,7 +206,7 @@ export class Store<initialState, Reducers> extends Broker {
 
 export const settlementToObject = () => {
   return pipe(
-    map((settlement: settlement) => {
+    map((settlement: Settlement) => {
       let _payload = [],
         _create = Object.values(settlement.lastSettlement['create']),
         _update = Object.values(settlement.lastSettlement['update']),

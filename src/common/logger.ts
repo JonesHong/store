@@ -2,23 +2,31 @@ import { DateTime } from 'luxon';
 import chalk from 'chalk';
 import stripAnsi from 'strip-ansi';
 import { envType } from './env_checker';
+import { Singleton } from './decoratios/singleton';
+import { Main } from './main';
+import { take } from 'rxjs';
 
 const log = console.log;
 const error = chalk.bold.red;
 const warn = chalk.hex('#FFA500'); // Orange color
 
+
 //
 let _logFolderPath;
-if (envType == 'nodejs') {
-  _logFolderPath = './_logs';
-  var fs = require('fs');
-  if (!fs.existsSync(_logFolderPath)) {
-    fs.mkdirSync(_logFolderPath);
-    log(`Create '${_logFolderPath}'!`);
-  } else {
-    log(warn(`Filepath '${_logFolderPath}' is existed!`));
+Main.isLogByFIle$.subscribe(isLogByFIle => {
+  if (!!isLogByFIle && envType == 'nodejs') {
+    var fs = require('fs');
+    _logFolderPath = './_logs';
+    if (!fs.existsSync(_logFolderPath)) {
+      fs.mkdirSync(_logFolderPath);
+      Main.printMode ? log(`Create '${_logFolderPath}'!`) : null;
+    } else {
+      Main.printMode ? log(warn(`Filepath '${_logFolderPath}' is existed!`)) : null;
+    }
   }
-}
+
+});
+
 // https://moment.github.io/luxon/#/formatting?id=table-of-tokens
 const DateString = (fmt: string = 'yyyy/LL/dd HH:mm:ss') => {
   return DateTime.now().toFormat(fmt);
@@ -30,9 +38,17 @@ interface Options {
   execTime?: number;
   payload?: any;
 }
+@Singleton
 class _Logger {
   // https://refactoring.guru/design-patterns/singleton/typescript/example
   private static instance: _Logger;
+  /**
+   * The static method that controls the access to the singleton instance.
+   *
+   * This implementation let you subclass the Singleton class while keeping
+   * just one instance of each subclass around.
+   */
+  public static getInstance: () => _Logger
   /**
    * The Singleton's constructor should always be private to prevent direct
    * construction calls with the `new` operator.
@@ -40,7 +56,15 @@ class _Logger {
 
   private _logPath;
   private constructor() {
-    if (envType == 'nodejs') {
+    this.init();
+  }
+  private init() {
+    Main.isLogByFIle$.subscribe(isLogByFIle => {
+      if (!!isLogByFIle) this.init();
+    });
+
+    if (!!Main.isLogByFIle && envType == 'nodejs') {
+      var fs = require('fs');
       var path = require('path');
       this._logPath = path.resolve(
         `${_logFolderPath}/${DateString('yyyy.LL.dd.HH.mm.ss')}.log`
@@ -49,21 +73,8 @@ class _Logger {
         encoding: 'utf-8',
       });
     }
-  }
+  };
 
-  /**
-   * The static method that controls the access to the singleton instance.
-   *
-   * This implementation let you subclass the Singleton class while keeping
-   * just one instance of each subclass around.
-   */
-  public static getInstance(): _Logger {
-    if (!_Logger.instance) {
-      _Logger.instance = new _Logger();
-    }
-
-    return _Logger.instance;
-  }
 
   private _baseHandler({ _str, options }: { _str: string; options: Options }) {
     // let _str, options;
@@ -85,7 +96,8 @@ class _Logger {
       }
     }
 
-    if (envType == 'nodejs') {
+    if (!!Main.isLogByFIle && envType == 'nodejs') {
+      var fs = require('fs');
       let _logsData = fs.readFileSync(this._logPath, { encoding: 'utf-8' });
       let _payload = `${_logsData}\n${stripAnsi(_str)}`;
       fs.writeFileSync(this._logPath, _payload, { encoding: 'utf-8' });
