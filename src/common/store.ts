@@ -6,14 +6,14 @@ import { Action, AddMany, RemoveMany, SetMany } from "./action";
 import { Reducer } from "./reducer";
 import { createFeatureSelector } from "./selector";
 import { CQRS } from "./main";
-import { LastSettlement } from "./interface/adapter.interface";
+import { EntityState, LastSettlement } from "./interface/adapter.interface";
 import { Settlement } from "./interface/store.interface";
 import { v4 as uuidv4 } from "uuid"
 import { filter, map } from "rxjs/operators";
 import { SettlementChanged } from "./pipes/_some.pipe";
 import { JDLObject, RelationshipConfig, RelationshipConfigTable } from "./interface/relation.interface";
 import { Entity } from "./entity";
-import { addMany } from "./adapter";
+import { addMany, removeOne, setOne } from "./adapter";
 // import { CacheService } from "./cache";
 
 
@@ -174,7 +174,7 @@ export class Store<initialState, Reducers> extends Broker {
         let { lastSettlement } = SettlementClone;
         let { reducerName } = SettlementClone;
         let theReducer: Reducer<any, any> = this.reducers[reducerName];
-        let theState = StateClone[reducerName];
+        let theState: EntityState<any> = StateClone[reducerName];
         theConfig = RelationshipConfigTable[reducerName];
 
         LastSettlementToValue = {
@@ -183,8 +183,28 @@ export class Store<initialState, Reducers> extends Broker {
           delete: Object.values(SettlementClone['lastSettlement']['delete']),
         };
         let createEntities: Entity[] = theReducer.createEntities(LastSettlementToValue['create']);
-        LastSettlementToValue['create'].length !== 0 ? (theState = addMany(createEntities, theState)) : null;
-
+        if (LastSettlementToValue['create'].length !== 0) { theState = addMany(createEntities, theState); }
+        if (LastSettlementToValue['update'].length !== 0) {
+          Array.from(LastSettlementToValue['update'])
+            .map((entityData) => {
+              // if (!!!theState['entities'][entityData['id']]) return;
+              let theEntity: Entity = theState['entities'][entityData['id']];
+              // 斷開所有連結，稍後會重建
+              theEntity.breakAllReferences();
+              let newEntity = theReducer.createEntity(entityData);
+              theState = setOne(newEntity, theState);
+              return entityData;
+            })
+        };
+        if (LastSettlementToValue['delete'].length !== 0) {
+          Array.from(LastSettlementToValue['delete'])
+            .map((id: string) => {
+              let theEntity: Entity = theState['entities'][id];
+              // 斷開所有連結，稍後會重建
+              theEntity.breakAllReferences();
+              theState = removeOne(id, theState);
+            })
+        }
       })
 
     );
