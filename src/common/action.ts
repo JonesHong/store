@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from "uuid";
 import { envType } from "./env_checker";
 import { Settlement } from "./interface/store.interface";
 import { Logger } from "./logger";
+import { upperCaseFirst } from "upper-case-first";
+
 
 export abstract class Action {
     abstract type: string;
@@ -278,7 +280,7 @@ export const replaceDefaultToEntity = (defaultName: string, reducerName: string)
         if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
         return null
     }
-    let reducerNameReg = `${reducerName['0']?.toUpperCase()}${reducerName?.toLowerCase().slice(1)}`;
+    let reducerNameReg = upperCaseFirst(reducerName);
     let replaceReg = /Default/;
     return defaultName.replace(replaceReg, reducerNameReg)
 }

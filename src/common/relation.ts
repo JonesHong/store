@@ -40,6 +40,7 @@ import { selectRelevanceEntity, selectSourceRelevanceEntity } from './selector';
 import { Logger } from './logger';
 import { DateTime } from 'luxon';
 import { Singleton } from './decoratios/singleton';
+import { camelCase } from 'lodash';
 
 /**
  * 『只要描述直接關聯的那條線的關係是什麼』
@@ -298,8 +299,7 @@ class _Relation {
               payload[`${direction}RelationName`] = splitJDLString[index == 0 ? 1 : 0].match(this.regexpMap['JDLEntity'])[0] // GroupUser{ or GroupUser
               if (payload[`${direction}RelationName`].includes("{"))
                 payload[`${direction}RelationName`] = payload[`${direction}RelationName`].slice(0, -1); // GroupUser
-              payload[`${direction}RelationName`] = payload[`${direction}RelationName`][0].toLowerCase() + // g
-                payload[`${direction}RelationName`].slice(1); // roupUser
+              payload[`${direction}RelationName`] = camelCase(payload[`${direction}RelationName`]); // roupUser
               // setMessageMap(jdlString, {  type: "error", description:  "isNotMatchJDLCurlyBrackets" });
             }
           }
@@ -445,6 +445,7 @@ class _Relation {
           let { _relationshipOptions, _relatedEntityMap, _relatedRelationNameMap } = accumulator[jdlObject[`${direction}EntityString`]];
 
           let tempRelationshipOption: InputRelationshipOption = {
+            inputEntityClassName: jdlObject[`${oppositeDirection}EntityString`],
             inputEntityOptions: {
               relationName: jdlObject[`${direction}RelationName`],
               displayField: jdlObject[`${direction}DisplayField`],
@@ -456,10 +457,17 @@ class _Relation {
               method: thisEntityOptionsMethod
             }
           };
+          // _relatedEntityMap: 一種 Entity可能會有複數的關係
+          // User 跟 User，可以是父母、兄弟、夫妻
+          // _relatedRelationNameMap: 一種關係只應該有一種 Entity
+          // 夫妻關係只會是 User 跟 User，不會是 User 跟 Group
           _relationshipOptions.push(tempRelationshipOption);
-          _relatedEntityMap.set(jdlObject[`${oppositeDirection}EntityString`], tempRelationshipOption);
+          let relationOptionsList: InputRelationshipOption[] = _relatedEntityMap.has(jdlObject[`${oppositeDirection}EntityString`]) ? _relatedEntityMap.get(jdlObject[`${oppositeDirection}EntityString`]) : [];
+          relationOptionsList.push(tempRelationshipOption)
+          _relatedEntityMap.set(jdlObject[`${oppositeDirection}EntityString`], relationOptionsList);
+          // _relatedEntityMap.set(jdlObject[`${oppositeDirection}EntityString`], tempRelationshipOption);
           if (accumulator[jdlObject[`${direction}EntityString`]]._relatedRelationNameMap.has(jdlObject[`${direction}RelationName`])) {
-
+            setMessageMap(jdlObject[`${direction}RelationName`], { type: "error", description: "displayFieldMustBeUnique" });
           }
           else {
             _relatedRelationNameMap.set(jdlObject[`${direction}RelationName`], tempRelationshipOption);
@@ -847,7 +855,7 @@ class _Relation {
   }
   public setRelationship: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
     let {
-      relationName = `_${inputEntity._name[0].toLowerCase()}${inputEntity._name.slice(1)}`,
+      relationName = `_${camelCase(inputEntity._name)}`,
       displayField = "id",
       method
     } = options.inputEntityOptions;
@@ -865,7 +873,7 @@ class _Relation {
   public addRelationships: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
     let { isMultiRelationNameEndWithMap = true } = options;
     let {
-      relationName = `_${inputEntity._name[0].toLowerCase()}${inputEntity._name.slice(1)}`,
+      relationName = `_${camelCase(inputEntity._name)}`,
       displayField = "id",
       method
     } = options.inputEntityOptions;

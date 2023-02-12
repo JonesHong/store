@@ -155,7 +155,7 @@ export interface InputRelationshipOption {
 }
 export type RelationshipConfig = {
     _relationshipOptions: InputRelationshipOption[];
-    _relatedEntityMap: Map<string, InputRelationshipOption>;
+    _relatedEntityMap: Map<string, InputRelationshipOption[]>;
     _relatedRelationNameMap: Map<string, InputRelationshipOption>;
 
 }

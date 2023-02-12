@@ -26,7 +26,7 @@ class _LowDBManager {
     private constructor() {
         isFolderPathExist(this._dbFolderPath);
         isFolderPathExist(this._todayFolder);
-        this._initalDB();
+        this._initialDB();
     }
 
     /**
@@ -43,7 +43,7 @@ class _LowDBManager {
         return _LowDBManager.instance;
     }
 
-    private _initalDB() {
+    private _initialDB() {
         let _beforeExec = DateTime.now();
         try {
             const files = readdirSync(this._todayFolder);
@@ -73,7 +73,7 @@ class _LowDBManager {
         let _afterExec = DateTime.now();
         let execTime = _afterExec.diff(_beforeExec, "milliseconds").toMillis();
 
-        Logger.log(service_name, `initalDB:`, { execTime });
+        Logger.log(service_name, `initialDB:`, { execTime });
 
     }
 

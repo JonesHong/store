@@ -46,6 +46,7 @@ import { asapScheduler } from 'rxjs';
 import { DateTime } from 'luxon';
 import { Logger } from './logger';
 import { envType } from './env_checker';
+import { camelCase } from "change-case";
 
 export abstract class Reducer<action, state> extends Bloc<action, state> {
   _reducerId = `reducer-${uuidV4()}`;
@@ -311,7 +312,7 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
     Object.entries(_methodMap).map((entry) => {
       let _key = entry[0],
         _method: any = entry[1],
-        _propMethodName = `${_key[0].toLowerCase()}${_key.slice(1)}`;
+        _propMethodName = camelCase(_key);
       this._actionTypeList.push(this.defaultMapper['actionMap'][_key]);
 
       this[_propMethodName] = (payload) => {

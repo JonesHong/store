@@ -14,6 +14,7 @@ import { SettlementChanged } from "./pipes/_some.pipe";
 import { JDLObject, RelationshipConfig, RelationshipConfigTable } from "./interface/relation.interface";
 import { Entity } from "./entity";
 import { addMany, removeOne, setOne } from "./adapter";
+import { camelCase } from "change-case";
 // import { CacheService } from "./cache";
 
 
@@ -95,7 +96,7 @@ export class Store<initialState, Reducers> extends Broker {
       return null;
     }
     let reducerName = reducer?._name?.slice(0, keywordToSlice);
-    reducerName = `${reducerName[0].toLowerCase()}${reducerName.slice(1)}`;
+    reducerName = camelCase(reducerName);
     if (!reducerName) {
       console.error(`The reducer need to be an Class.`);
       return null;
@@ -213,16 +214,15 @@ export class Store<initialState, Reducers> extends Broker {
               theState = removeOne(id, theState);
             })
         }
-        return SettlementClone;
+        StateClone[reducerName] = theState;
+        return { SettlementClone, reducerName };
       }),
-      mergeMap((SettlementClone) => {
+      mergeMap(({ SettlementClone, reducerName }) => {
         // 這個 operator 的目的是；針對 settlement 中的 create, update 的部分重建關係
 
         let { lastSettlement } = SettlementClone;
         let isCreateLengthBeZero = lastSettlement['create'].length == 0,
           isUpdateLengthBeZero = lastSettlement['create'].length == 0;
-        let create$ = of(1),
-          update$ = of(2);
         const RelationBuilderObservable = (EntityList: Entity[]) => {
           // 遍歷所有的 Entity
           return from(EntityList)
@@ -234,11 +234,14 @@ export class Store<initialState, Reducers> extends Broker {
                 }
                 let { id } = Entity;
                 // 兩個 Entity之間可能有複數種關係，用這個方式去避免被跳過
-                let _configsIndex = 0;
+                // let _configsIndex = 0;
                 // 遍歷這個 Entity 所有的 relationConfig
                 return from(theConfig['_relationshipOptions'])
                   .pipe(
                     map((relationshipOption) => {
+                      let thisEntityName = camelCase(reducerName), // e.g. groupUser
+                        inputEntityName = camelCase(relationshipOption.inputEntityClassName); // e.g. subTask
+                      let inputEntity = this.reducers[inputEntityName]
                       // const findTargetRelationOptionIndex = _.findIndex()
 
                     })
@@ -250,6 +253,9 @@ export class Store<initialState, Reducers> extends Broker {
         // else if (!isCreateLengthBeZero && isUpdateLengthBeZero) { }
         // else if (isCreateLengthBeZero && !isUpdateLengthBeZero) { }
         // else if (!isCreateLengthBeZero && !isUpdateLengthBeZero) { }
+
+        let create$ = RelationBuilderObservable(LastSettlementToEntity['create']),
+          update$ = RelationBuilderObservable(LastSettlementToEntity['update']);
         return concat(
           isCreateLengthBeZero ? of(null) : create$,
           isUpdateLengthBeZero ? of(null) : update$
