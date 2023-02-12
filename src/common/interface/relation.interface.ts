@@ -197,7 +197,7 @@ interface FromJDLMessageError extends FromJDLMessageBase {
     type: "error",
     dateTimeString?: string;
     description?: "isNotMatchJDLFormatBasic" | "isNotSupportedWith" | "isNotSupportedRequired" | "isNotMatchJDLEntity" |
-    "syntaxErrorJDLCurlyBrackets" | "syntaxErrorJDLParentheses" | "others";
+    "syntaxErrorJDLCurlyBrackets" | "syntaxErrorJDLParentheses" | "displayFieldMustBeUnique" | "others";
 }
 
 interface FromJDLMessageWarning extends FromJDLMessageBase {
@@ -220,3 +220,5 @@ export interface JDLObject {
 }
 
 export type RelationBuilderMethod = ({ thisEntity, inputEntity }: { thisEntity: Entity, inputEntity?: Entity }, options: InputRelationshipOption) => void;
+
+

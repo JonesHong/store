@@ -1,5 +1,5 @@
 import * as _ from "lodash";
-import { asapScheduler, BehaviorSubject, Observable, pipe, Subject, Subscription, TeardownLogic } from "rxjs";
+import { asapScheduler, BehaviorSubject, concat, from, Observable, of, pipe, Subject, Subscription, TeardownLogic } from "rxjs";
 // import { addToSubscription } from "./store.interface";
 import { Broker } from "./broker";
 import { Action, AddMany, RemoveMany, SetMany } from "./action";
@@ -9,7 +9,7 @@ import { CQRS } from "./main";
 import { EntityState, LastSettlement } from "./interface/adapter.interface";
 import { Settlement } from "./interface/store.interface";
 import { v4 as uuidv4 } from "uuid"
-import { filter, map } from "rxjs/operators";
+import { filter, map, mergeMap } from "rxjs/operators";
 import { SettlementChanged } from "./pipes/_some.pipe";
 import { JDLObject, RelationshipConfig, RelationshipConfigTable } from "./interface/relation.interface";
 import { Entity } from "./entity";
@@ -152,60 +152,110 @@ export class Store<initialState, Reducers> extends Broker {
 
 
   /**
-  //  * If MainCQRS seRelationshipFromJDL
-   * :Observable<initialState>
+   * 如果直接 cloneDeep(Store)的話，每次更新都要重新綁全部的邏輯  
+   * 所以根據 settlement的結果修正 RelationStore中的 state  
+   * 然後只重新綁訂有更新部分的關係，以達到最小消耗
    */
   private buildRelationStore = () => {
     // let { relationshipConfigTable } = this._CQRS;
     if (!this._withRelation) this._withRelation = _.cloneDeep(this.state);
-    let StateClone = this._withRelation;
+    let StateClone = this._withRelation,
+      theReducer: Reducer<any, any>,
+      theState: EntityState<any>;
     let JDLObject: JDLObject,
       RelationshipConfigTable: RelationshipConfigTable,
       SettlementClone: Settlement,
-      LastSettlementToValue: { create: any[]; update: any[]; delete: string[] },
-      theConfig: RelationshipConfig
-    // LastSettlementToEntity: { create: Entity[]; update: Entity[]; delete: string[] };
+      LastSettlementToValues: { create: any[]; update: any[]; delete: string[] },
+      theConfig: RelationshipConfig,
+      LastSettlementToEntity: { create: Entity[]; update: Entity[] } = { create: [], update: [] };
 
     return this.settlement$.pipe(
       filter((settlement) => !!this._CQRS && !!this._CQRS.relationshipConfigTable),
       map(settlement => {
+        // 這個 operator 的目的是；整理最新 settlement 的結果   
         RelationshipConfigTable = this._CQRS.relationshipConfigTable;
         SettlementClone = _.cloneDeep(settlement);
         let { lastSettlement } = SettlementClone;
         let { reducerName } = SettlementClone;
-        let theReducer: Reducer<any, any> = this.reducers[reducerName];
-        let theState: EntityState<any> = StateClone[reducerName];
+        theReducer = this.reducers[reducerName];
+        theState = StateClone[reducerName];
         theConfig = RelationshipConfigTable[reducerName];
 
-        LastSettlementToValue = {
-          create: Object.values(SettlementClone['lastSettlement']['create']),
-          update: Object.values(SettlementClone['lastSettlement']['update']),
-          delete: Object.values(SettlementClone['lastSettlement']['delete']),
+        LastSettlementToValues = {
+          create: Object.values(lastSettlement['create']),
+          update: Object.values(lastSettlement['update']),
+          delete: Object.values(lastSettlement['delete']),
         };
-        let createEntities: Entity[] = theReducer.createEntities(LastSettlementToValue['create']);
-        if (LastSettlementToValue['create'].length !== 0) { theState = addMany(createEntities, theState); }
-        if (LastSettlementToValue['update'].length !== 0) {
-          Array.from(LastSettlementToValue['update'])
+        if (LastSettlementToValues['create'].length !== 0) {
+          LastSettlementToEntity['create'] = theReducer.createEntities(LastSettlementToValues['create']);
+          theState = addMany(LastSettlementToEntity['create'], theState);
+        }
+        if (LastSettlementToValues['update'].length !== 0) {
+          Array.from(LastSettlementToValues['update'])
             .map((entityData) => {
               // if (!!!theState['entities'][entityData['id']]) return;
               let theEntity: Entity = theState['entities'][entityData['id']];
               // 斷開所有連結，稍後會重建
-              theEntity.breakAllReferences();
+              theEntity.breakAllEntityRelationships();
               let newEntity = theReducer.createEntity(entityData);
+              LastSettlementToEntity['update'].push(newEntity);
               theState = setOne(newEntity, theState);
               return entityData;
             })
         };
-        if (LastSettlementToValue['delete'].length !== 0) {
-          Array.from(LastSettlementToValue['delete'])
+        if (LastSettlementToValues['delete'].length !== 0) {
+          Array.from(LastSettlementToValues['delete'])
             .map((id: string) => {
               let theEntity: Entity = theState['entities'][id];
-              // 斷開所有連結，稍後會重建
-              theEntity.breakAllReferences();
+              // 斷開所有連結
+              theEntity.breakAllEntityRelationships();
+              // 從 state中刪除
               theState = removeOne(id, theState);
             })
         }
+        return SettlementClone;
+      }),
+      mergeMap((SettlementClone) => {
+        // 這個 operator 的目的是；針對 settlement 中的 create, update 的部分重建關係
+
+        let { lastSettlement } = SettlementClone;
+        let isCreateLengthBeZero = lastSettlement['create'].length == 0,
+          isUpdateLengthBeZero = lastSettlement['create'].length == 0;
+        let create$ = of(1),
+          update$ = of(2);
+        const RelationBuilderObservable = (EntityList: Entity[]) => {
+          // 遍歷所有的 Entity
+          return from(EntityList)
+            .pipe(
+              mergeMap((Entity: Entity) => {
+                if (!theConfig || theConfig['_relationshipOptions'].length == 0) {
+                  // 如果這個 Entity 並未設定關係的話跳過
+                  return of(null)
+                }
+                let { id } = Entity;
+                // 兩個 Entity之間可能有複數種關係，用這個方式去避免被跳過
+                let _configsIndex = 0;
+                // 遍歷這個 Entity 所有的 relationConfig
+                return from(theConfig['_relationshipOptions'])
+                  .pipe(
+                    map((relationshipOption) => {
+                      // const findTargetRelationOptionIndex = _.findIndex()
+
+                    })
+                  )
+              })
+            )
+        }
+        // if (isCreateLengthBeZero && isUpdateLengthBeZero) { }
+        // else if (!isCreateLengthBeZero && isUpdateLengthBeZero) { }
+        // else if (isCreateLengthBeZero && !isUpdateLengthBeZero) { }
+        // else if (!isCreateLengthBeZero && !isUpdateLengthBeZero) { }
+        return concat(
+          isCreateLengthBeZero ? of(null) : create$,
+          isUpdateLengthBeZero ? of(null) : update$
+        )
       })
+
 
     );
   }

@@ -23,6 +23,21 @@ import {
   CommonActionMap,
   MethodMap,
   Action,
+  CompareSettlement,
+  AddOne,
+  AddMany,
+  SetOne,
+  SetMany,
+  SetAll,
+  RemoveOne,
+  RemoveMany,
+  RemoveAll,
+  UpdateOne,
+  UpdateMany,
+  UpsertOne,
+  UpsertMany,
+  Initial,
+  PacketLossObserved,
 } from './action';
 import { selectRelevanceEntity } from './selector';
 import { v4 as uuidV4 } from 'uuid';
@@ -108,55 +123,100 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
     let newState: state = cloneAndReset(this.state, action);
     switch (action['type']) {
       case this.defaultMapper['actionMap']['Initial']: {
+        let actionWithType = action as Initial;
         newState = initialMain(this._initialState, newState);
         break;
       }
+      case this.defaultMapper['actionMap']['CompareSettlement']: {
+        let actionWithType = action as CompareSettlement;
+        // 比較前端的 _currentHash 與後端的 _previousHash
+        if (!!this.state['_currentHash']) {
+          let { settlement } = actionWithType;
+
+          if (this.state['_currentHash'] !== settlement['_previousHash']) {
+            // 發現掉包，不改當前的 state
+            // 送一個 Action 回去給 Store 應該要透過 Effect 重新拿完整/缺失的部分
+            this.store.dispatch(new PacketLossObserved({ reducerName: this._name, _currentHash: this.state['_currentHash'] }));
+          }
+          else {
+            // 代表後端丟來的資料跟前端是沒有落差的
+            let stateClone: state = _.cloneDeep(this.state);
+            let createValues = Object.values(settlement['lastSettlement']['create']),
+              updateValues = Object.values(settlement['lastSettlement']['update']),
+              deleteValues = Object.values(settlement['lastSettlement']['delete']);
+            // 按照後端 settlement 完的結果更新前端的 state
+            createValues.length !== 0 ? stateClone = addMany(createValues, stateClone) : null;
+            updateValues.length !== 0 ? stateClone = upsertMany(updateValues, stateClone) : null;
+            deleteValues.length !== 0 ? stateClone = removeMany(deleteValues, stateClone) : null;
+            // 更新完 state 也要同步當前的 hash版本
+            stateClone['_currentHash'] = settlement['_currentHash'];
+            stateClone['_previousHash'] = settlement['_previousHash'];
+            // 把在剛剛更新 state 改變的 lastSettlement 重置
+            newState = cloneAndReset(stateClone);
+          }
+        }
+
+        // newState = initialMain(this._initialState, newState);
+        break;
+      }
       case this.defaultMapper['actionMap']['AddOne']: {
-        newState = addOne(action['entity'], newState, _redisOptions);
+        let actionWithType = action as AddOne;
+        newState = addOne(actionWithType['entity'], newState, _redisOptions);
         break;
       }
       case this.defaultMapper['actionMap']['AddMany']: {
-        newState = addMany(action['entities'], newState, _redisOptions);
+        let actionWithType = action as AddMany;
+        newState = addMany(actionWithType['entities'], newState, _redisOptions);
         break;
       }
       case this.defaultMapper['actionMap']['SetOne']: {
-        newState = setOne(action['entity'], newState);
+        let actionWithType = action as SetOne;
+        newState = setOne(actionWithType['entity'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['SetMany']: {
-        newState = setMany(action['entities'], newState);
+        let actionWithType = action as SetMany;
+        newState = setMany(actionWithType['entities'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['SetAll']: {
-        newState = setAll(action['entities'], newState);
+        let actionWithType = action as SetAll;
+        newState = setAll(actionWithType['entities'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['RemoveOne']: {
-        newState = removeOne(action['id'], newState);
+        let actionWithType = action as RemoveOne;
+        newState = removeOne(actionWithType['id'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['RemoveMany']: {
-        newState = removeMany(action['ids'], newState);
+        let actionWithType = action as RemoveMany;
+        newState = removeMany(actionWithType['ids'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['RemoveAll']: {
+        let actionWithType = action as RemoveAll;
         newState = removeAll(newState);
         break;
       }
       case this.defaultMapper['actionMap']['UpdateOne']: {
-        newState = updateOne(action['entity'], newState);
+        let actionWithType = action as UpdateOne;
+        newState = updateOne(actionWithType['entity'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['UpdateMany']: {
-        newState = updateMany(action['entities'], newState);
+        let actionWithType = action as UpdateMany;
+        newState = updateMany(actionWithType['entities'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['UpsertOne']: {
-        newState = upsertOne(action['entity'], newState);
+        let actionWithType = action as UpsertOne;
+        newState = upsertOne(actionWithType['entity'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['UpsertMany']: {
-        newState = upsertMany(action['entities'], newState);
+        let actionWithType = action as UpsertMany;
+        newState = upsertMany(actionWithType['entities'], newState);
         break;
       }
       default: {
@@ -197,6 +257,7 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
       console.log(_logger['_str']);
     return newState;
   }
+
 
   private _entityClass;
   public setEntity(entityClass) {

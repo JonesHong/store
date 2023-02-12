@@ -16,6 +16,7 @@ import {
   IEntityRelationConfig,
   InputRelationshipOption,
   JDLObject,
+  RelationBuilderMethod,
   RelationDescription,
   RelationshipConfigTable,
   RelationshipFromJDL,
@@ -457,7 +458,12 @@ class _Relation {
           };
           _relationshipOptions.push(tempRelationshipOption);
           _relatedEntityMap.set(jdlObject[`${oppositeDirection}EntityString`], tempRelationshipOption);
-          _relatedRelationNameMap.set(jdlObject[`${direction}RelationName`], tempRelationshipOption);
+          if (accumulator[jdlObject[`${direction}EntityString`]]._relatedRelationNameMap.has(jdlObject[`${direction}RelationName`])) {
+
+          }
+          else {
+            _relatedRelationNameMap.set(jdlObject[`${direction}RelationName`], tempRelationshipOption);
+          }
 
           switchCount++;
           switchJDLObjectFromAndTo();
@@ -826,6 +832,114 @@ class _Relation {
       })
     );
   }
+
+
+  public switchRelationshipOptions = (options: InputRelationshipOption) => {
+    return {
+      ...options,
+      inputEntityOptions: options.thisEntityOptions,
+      thisEntityOptions: options.inputEntityOptions,
+    }
+  }
+  public buildRelationship: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
+    let { method } = options.thisEntityOptions;
+    thisEntity[method](inputEntity, options);
+  }
+  public setRelationship: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
+    let {
+      relationName = `_${inputEntity._name[0].toLowerCase()}${inputEntity._name.slice(1)}`,
+      displayField = "id",
+      method
+    } = options.inputEntityOptions;
+    // console.log(`${thisEntity._name}.setRelationship:\n`, options, '\n', thisEntity);
+    if (!!thisEntity[relationName]) return;
+    thisEntity[relationName] = inputEntity;
+    options['inputEntityClassName'] = inputEntity._name;
+    thisEntity.setRelationshipKeyMap(relationName, options);
+
+    inputEntity[method](
+      thisEntity,
+      this.switchRelationshipOptions(options)
+    )
+  }
+  public addRelationships: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
+    let { isMultiRelationNameEndWithMap = true } = options;
+    let {
+      relationName = `_${inputEntity._name[0].toLowerCase()}${inputEntity._name.slice(1)}`,
+      displayField = "id",
+      method
+    } = options.inputEntityOptions;
+    if (isMultiRelationNameEndWithMap) {
+      relationName = relationName.slice(-3) === "Map" ? relationName : `${relationName}Map`;
+      options['inputEntityOptions']['relationName'] = relationName;
+    }
+    // console.log(`${thisEntity._name}.addRelationships:\n`, options, '\n', thisEntity);
+    if (!!!thisEntity[relationName]) thisEntity[relationName] = {};
+    if (!!thisEntity[relationName][inputEntity[displayField]]) return;
+    thisEntity[relationName][inputEntity[displayField]] = inputEntity;
+    options['inputEntityClassName'] = inputEntity._name;
+    thisEntity.setRelationshipKeyMap(relationName, options);
+
+    inputEntity[method](
+      thisEntity,
+      this.switchRelationshipOptions(options)
+    )
+  }
+  public breakInputEntityRelationships: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
+    // let { inputEntityOptions, thisEntityOptions } = options;
+    // console.log(`${this._name}.breakInputEntityRelationships:\n `, this._relationshipKeyMap)
+    let { relationName, displayField = "id" } = options.inputEntityOptions;
+    if (!!!thisEntity[relationName]) return;
+    if (displayField in thisEntity[relationName]) {
+      // 對象是一的時候，this可能是一或是多的
+      // console.log(3333)
+      delete thisEntity[relationName];
+    } else if (!!thisEntity[relationName][inputEntity[displayField]]) {
+      // 對象是多的時候，this可能是一或是多的
+      delete thisEntity[relationName][inputEntity[displayField]];
+      // console.log(4444)
+    } else {
+      console.error("不可能!!，一定是哪裡出錯了")
+    }
+    thisEntity.deleteRelationshipKeyMap(relationName);
+  }
+
+  public breakEntityRelationshipByOptions: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
+    // console.log(`${this._name}.breakThisEntityRelationshipByOptions:\n `, this._relationshipKeyMap)
+    let { relationName } = options.inputEntityOptions;
+    let { displayField = "id", method } = options.thisEntityOptions;
+
+    let relatedEntity!: Entity;
+    if (!!!thisEntity[relationName]) return;
+    // 1. 先斷開自己在對方那邊紀錄的關係，所以拿 relatedEntityOptions.thisEntityOptions.method檢查
+    switch (method) {
+      case "setRelationship": {
+        // console.log(1111)
+        // 此 Entity與對方的關係為"一對一(1:1)"或是"多對一(*:1)"
+        relatedEntity = thisEntity[relationName];
+        relatedEntity.breakInputEntityRelationships(thisEntity, this.switchRelationshipOptions(options));
+      }
+        break;
+      case "addRelationships": {
+        // console.log(2222)
+        // 此 Entity與對方的關係為"一對多(1:*)"或是"多對多(*:*)"
+        Object.values(thisEntity[relationName]).map((entity: Entity) => {
+          relatedEntity = entity;
+          relatedEntity.breakInputEntityRelationships(thisEntity, this.switchRelationshipOptions(options));
+        });
+      }
+        break;
+    }
+    // 2. 接著把自己這邊跟對方有關的刪掉
+    delete thisEntity[relationName];
+    thisEntity.deleteRelationshipKeyMap(relationName);
+  }
+  public breakAllEntityRelationships = (thisEntity: Entity) => {
+    // console.log(`${this._name}.breakAllEntityRelationships:\n `, this._relationshipKeyMap)
+    // console.log( this._relationshipKeyMap.entries())
+    Array.from(thisEntity.relationshipKeyMap.values()).map((options) => thisEntity.breakEntityRelationshipByOptions(options));
+  }
+
 }
 
 export const Relation = _Relation.getInstance();

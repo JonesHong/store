@@ -2,6 +2,7 @@ import * as _ from "lodash"
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { envType } from "./env_checker";
+import { Settlement } from "./interface/store.interface";
 import { Logger } from "./logger";
 
 export abstract class Action {
@@ -107,9 +108,9 @@ export const transferActionMapToActionList = function (actionMap: object): strin
 }
 export const DefaultActionMap = {
     SystemInitiate: "[Default] System Initiate",
+    ErrorResponse: "[Default] Error Response",
     SystemRestoreByCache: "[Default] System Restore By Cache",
-    GetMissingSettlements: "[Default] Get Missing Settlements",
-    ErrorResponse: "[Default] Error Response"
+    PacketLossObserved: "[Default] Packet Loss Observed",
 }
 export class SystemInitiate extends Action {
     readonly type: string = DefaultActionMap.SystemInitiate
@@ -129,9 +130,9 @@ export class SystemRestoreByCache extends Action {
         super();
     }
 }
-export class GetMissingSettlements extends Action {
-    readonly type: string = DefaultActionMap.GetMissingSettlements
-    constructor(public payload: { hash: string }) {
+export class PacketLossObserved extends Action {
+    readonly type: string = DefaultActionMap.PacketLossObserved
+    constructor(public payload: { reducerName: string, _currentHash: string }) {
         super();
     }
 }
@@ -164,123 +165,130 @@ export const CommonActionMap = {
     UpdateMany: '[Default] Update Many',
     UpsertOne: '[Default] Upsert One',
     UpsertMany: '[Default] Upsert Many',
+    CompareSettlement: "[Default] Compare Settlement",
     // CacheOne: '[Default] Cache One',
     // CacheMany: '[Default] Cache Many',
     // CacheAll: '[Default] Cache All',
 }
 export class Initial extends Action {
     readonly type: string = CommonActionMap.Initial
-    constructor(private entityName: string, private payload?: never) {
+    constructor(private reducerName: string, private payload?: never) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class AddOne extends Action {
     readonly type: string = CommonActionMap.AddOne
-    constructor(private entityName: string, public entity: any) {
+    constructor(private reducerName: string, public entity: any) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class AddMany extends Action {
     readonly type: string = CommonActionMap.AddMany
-    constructor(private entityName: string, public entities: any[]) {
+    constructor(private reducerName: string, public entities: any[]) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class SetOne extends Action {
     readonly type: string = CommonActionMap.SetOne
-    constructor(private entityName: string, public entity: any) {
+    constructor(private reducerName: string, public entity: any) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class SetMany extends Action {
     readonly type: string = CommonActionMap.SetMany
-    constructor(private entityName: string, public entities: any[]) {
+    constructor(private reducerName: string, public entities: any[]) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class SetAll extends Action {
     readonly type: string = CommonActionMap.SetAll
-    constructor(private entityName: string, public entities: any) {
+    constructor(private reducerName: string, public entities: any) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class RemoveOne extends Action {
     readonly type: string = CommonActionMap.RemoveOne
-    constructor(private entityName: string, public id: string) {
+    constructor(private reducerName: string, public id: string) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class RemoveMany extends Action {
     readonly type: string = CommonActionMap.RemoveMany
-    constructor(private entityName: string, public ids: any[]) {
+    constructor(private reducerName: string, public ids: any[]) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class RemoveAll extends Action {
     readonly type: string = CommonActionMap.RemoveAll
-    constructor(private entityName: string) {
+    constructor(private reducerName: string) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class UpdateOne extends Action {
     readonly type: string = CommonActionMap.UpdateOne
-    constructor(private entityName: string, public entity: any) {
+    constructor(private reducerName: string, public entity: any) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class UpdateMany extends Action {
     readonly type: string = CommonActionMap.UpdateMany
-    constructor(private entityName: string, public entities: any[]) {
+    constructor(private reducerName: string, public entities: any[]) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class UpsertOne extends Action {
     readonly type: string = CommonActionMap.UpsertOne
-    constructor(private entityName: string, public entity: any) {
+    constructor(private reducerName: string, public entity: any) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
 export class UpsertMany extends Action {
     readonly type: string = CommonActionMap.UpsertMany
-    constructor(private entityName: string, public entities: any[]) {
+    constructor(private reducerName: string, public entities: any[]) {
         super();
-        this.type = replaceDefaultToEntity(this.type, entityName);
+        this.type = replaceDefaultToEntity(this.type, reducerName);
     }
 }
-// UpsertMany.t
-export const replaceDefaultToEntity = (defaultName: string, entityName: string) => {
-    if (typeof (entityName) !== "string") {
-        // console.error(`[Error] entityName ids need to be String`);
+export class CompareSettlement extends Action {
+    readonly type: string = CommonActionMap.CompareSettlement
+    constructor(private reducerName: string, public settlement: Settlement) {
+        super();
+    }
+}
+
+export const replaceDefaultToEntity = (defaultName: string, reducerName: string) => {
+    if (typeof (reducerName) !== "string") {
+        // console.error(`[Error] reducerName ids need to be String`);
         let _logger = Logger.error(
             "replaceDefaultToEntity",
-            `entityName ids need to be String`
+            `reducerName ids need to be String`
         );
         if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
         return null
     }
-    let entityNameReg = `${entityName['0']?.toUpperCase()}${entityName?.toLowerCase().slice(1)}`;
+    let reducerNameReg = `${reducerName['0']?.toUpperCase()}${reducerName?.toLowerCase().slice(1)}`;
     let replaceReg = /Default/;
-    return defaultName.replace(replaceReg, entityNameReg)
+    return defaultName.replace(replaceReg, reducerNameReg)
 }
 
-export const transferDefaultToEntity = (entityName: string) => {
-    if (typeof (entityName) !== "string") {
-        // console.error(`[Error] entityName ids need to be String`);
+export const transferDefaultToEntity = (reducerName: string) => {
+    if (typeof (reducerName) !== "string") {
+        // console.error(`[Error] reducerName ids need to be String`);
         let _logger = Logger.error(
             "transferDefaultToEntity",
-            `entityName ids need to be String`
+            `reducerName ids need to be String`
         );
         if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
         return null
@@ -290,26 +298,27 @@ export const transferDefaultToEntity = (entityName: string) => {
     Object.entries(actionMap).map(entry => {
         let _key = entry[0],
             _val = entry[1];
-        actionMap[_key] = replaceDefaultToEntity(_val, entityName);
+        actionMap[_key] = replaceDefaultToEntity(_val, reducerName);
     })
     // );
 
     let _payload: { actionMap: typeof CommonActionMap, methodMap: MethodMap } = {
         actionMap,
         methodMap: {
-            Initial: (entityName) => new Initial(entityName),
-            AddOne: (entityName, entity) => new AddOne(entityName, entity),
-            AddMany: (entityName, entities) => new AddMany(entityName, entities),
-            SetOne: (entityName, entity) => new SetOne(entityName, entity),
-            SetMany: (entityName, entities) => new SetMany(entityName, entities),
-            SetAll: (entityName, entities) => new SetAll(entityName, entities),
-            RemoveOne: (entityName, id) => new RemoveOne(entityName, id),
-            RemoveMany: (entityName, ids) => new RemoveMany(entityName, ids),
-            RemoveAll: (entityName) => new RemoveAll(entityName),
-            UpdateOne: (entityName, entity) => new UpdateOne(entityName, entity),
-            UpdateMany: (entityName, entities) => new UpdateMany(entityName, entities),
-            UpsertOne: (entityName, entity) => new UpsertOne(entityName, entity),
-            UpsertMany: (entityName, entities) => new UpsertMany(entityName, entities),
+            Initial: (reducerName) => new Initial(reducerName),
+            AddOne: (reducerName, entity) => new AddOne(reducerName, entity),
+            AddMany: (reducerName, entities) => new AddMany(reducerName, entities),
+            SetOne: (reducerName, entity) => new SetOne(reducerName, entity),
+            SetMany: (reducerName, entities) => new SetMany(reducerName, entities),
+            SetAll: (reducerName, entities) => new SetAll(reducerName, entities),
+            RemoveOne: (reducerName, id) => new RemoveOne(reducerName, id),
+            RemoveMany: (reducerName, ids) => new RemoveMany(reducerName, ids),
+            RemoveAll: (reducerName) => new RemoveAll(reducerName),
+            UpdateOne: (reducerName, entity) => new UpdateOne(reducerName, entity),
+            UpdateMany: (reducerName, entities) => new UpdateMany(reducerName, entities),
+            UpsertOne: (reducerName, entity) => new UpsertOne(reducerName, entity),
+            UpsertMany: (reducerName, entities) => new UpsertMany(reducerName, entities),
+            CompareSettlement: (reducerName, settlement) => new CompareSettlement(reducerName, settlement),
         }
     }
 
@@ -317,19 +326,20 @@ export const transferDefaultToEntity = (entityName: string) => {
 }
 
 export interface MethodMap {
-    Initial: (entityName) => Initial;
-    AddOne: (entityName, entity) => AddOne;
-    AddMany: (entityName, entities) => AddMany;
-    SetOne: (entityName, entity) => SetOne;
-    SetMany: (entityName, entities) => SetMany;
-    SetAll: (entityName, entities) => SetAll;
-    RemoveOne: (entityName, id) => RemoveOne;
-    RemoveMany: (entityName, ids) => RemoveMany;
-    RemoveAll: (entityName) => RemoveAll;
-    UpdateOne: (entityName, entity) => UpdateOne;
-    UpdateMany: (entityName, entities) => UpdateMany;
-    UpsertOne: (entityName, entity) => UpsertOne;
-    UpsertMany: (entityName, entities) => UpsertMany;
+    Initial: (reducerName) => Initial;
+    AddOne: (reducerName, entity) => AddOne;
+    AddMany: (reducerName, entities) => AddMany;
+    SetOne: (reducerName, entity) => SetOne;
+    SetMany: (reducerName, entities) => SetMany;
+    SetAll: (reducerName, entities) => SetAll;
+    RemoveOne: (reducerName, id) => RemoveOne;
+    RemoveMany: (reducerName, ids) => RemoveMany;
+    RemoveAll: (reducerName) => RemoveAll;
+    UpdateOne: (reducerName, entity) => UpdateOne;
+    UpdateMany: (reducerName, entities) => UpdateMany;
+    UpsertOne: (reducerName, entity) => UpsertOne;
+    UpsertMany: (reducerName, entities) => UpsertMany;
+    CompareSettlement: (reducerName, settlement) => CompareSettlement;
 }
 export type DefaultActionUnion = AddOne |
     AddMany |
@@ -342,4 +352,5 @@ export type DefaultActionUnion = AddOne |
     UpdateOne |
     UpdateMany |
     UpsertOne |
-    UpsertMany;
+    UpsertMany |
+    CompareSettlement;
