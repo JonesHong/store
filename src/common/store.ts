@@ -1,20 +1,23 @@
 import * as _ from "lodash";
-import { asapScheduler, BehaviorSubject, concat, from, Observable, of, pipe, Subject, Subscription, TeardownLogic } from "rxjs";
+import { asapScheduler, BehaviorSubject, concat, from, Observable, of, pipe, Subscription } from "rxjs";
 // import { addToSubscription } from "./store.interface";
 import { Broker } from "./broker";
 import { Action, AddMany, RemoveMany, SetMany } from "./action";
 import { Reducer } from "./reducer";
-import { createFeatureSelector } from "./selector";
-import { CQRS } from "./main";
-import { EntityState, LastSettlement } from "./interface/adapter.interface";
+import { selectRelevanceEntity } from "./selector";
+import { CQRS, Main } from "./main";
+import { EntityState } from "./interface/adapter.interface";
 import { Settlement } from "./interface/store.interface";
 import { v4 as uuidv4 } from "uuid"
-import { filter, map, mergeMap } from "rxjs/operators";
+import { catchError, filter, last, map, mergeMap, tap } from "rxjs/operators";
 import { SettlementChanged } from "./pipes/_some.pipe";
 import { JDLObject, RelationshipConfig, RelationshipConfigTable } from "./interface/relation.interface";
 import { Entity } from "./entity";
 import { addMany, removeOne, setOne } from "./adapter";
-import { camelCase } from "change-case";
+import { camelCase, pascalCase } from "change-case";
+import { Relation } from "./relation";
+import { Logger } from "./logger";
+import { envType } from "./env_checker";
 // import { CacheService } from "./cache";
 
 
@@ -34,33 +37,34 @@ export class Store<initialState, Reducers> extends Broker {
   // private _lastSettlement: settlement;
   private _CQRS: CQRS<initialState, Reducers>;
   private _reducers: Reducers;
+  private _withRelation: initialState;
+  private _withRelation$: Observable<initialState>;
+
+  public get withRelation() {
+    return this._withRelation
+  }
+  public get withRelation$() {
+    return this._withRelation$
+  }
   public get reducers() {
     return this._reducers
   }
-  private _state: initialState;
-  public get state() {
-    return this._state
-  }
-  // private _stateInstantiate: initialState;
-  // public get stateInstantiate() {
-  //   return this._stateInstantiate
-  // }
   private _state$: BehaviorSubject<initialState>;
   public get state$() {
     return this._state$.asObservable()
   }
-  // public get reducerSettlement() {
-  //   return this._settlement$.value;
-  // }
+  public get state() {
+    return this._state$.value
+  }
   private _settlement$: BehaviorSubject<Settlement> = new BehaviorSubject(null);
   public get settlement$() {
     return this._settlement$.asObservable()
       .pipe(
-        SettlementChanged(this._settlement$)
-      );
+      // SettlementChanged(this._settlement$)
+    );
   }
   // private _settlementsLogSize = 100;
-  private _settlementsLog = [];
+  // private _settlementsLog = [];
 
   constructor() {
     super();
@@ -71,79 +75,101 @@ export class Store<initialState, Reducers> extends Broker {
       asapScheduler.schedule(() => { this._storeInitial(); }, 100)
       return;
     }
-    this.settlement$.subscribe(settlement => {
-      this._settlementsLog.push(settlement);
-      // if (this._settlementsLog.length > CacheService.maxConfig._settlementsLogSize) this._settlementsLog = this._settlementsLog.slice(1);
-    })
+    // this.settlement$.subscribe(settlement => {
+    //   this._settlementsLog.push(settlement);
+    //   // if (this._settlementsLog.length > CacheService.maxConfig._settlementsLogSize) this._settlementsLog = this._settlementsLog.slice(1);
+    // })
   }
 
-  setMain(main: CQRS<initialState, Reducers>) {
-    this._CQRS = main;
+  setCQRS(cqrs: CQRS<initialState, Reducers>) {
+    this._CQRS = cqrs;
   }
   setInitial(reducers: Reducers, initialState: initialState) {
     this._reducers = reducers;
-    this._state = initialState
-    // this._stateInstantiate = initialState
-    this._state$ = new BehaviorSubject(initialState)
+    this._state$ = new BehaviorSubject(initialState);
 
+    if (!this.withRelation) {
+      this._withRelation = _.cloneDeep(this.state);
+      this._withRelation$ = this.buildRelationStore()
+    }
   }
   // count = 0
   addReducer(reducer: Reducer<any, any>): void {
     let keywordToSlice = reducer?._name?.search(/Reducer/);
     // console.log(keywordToSlice, reducer)
     if (keywordToSlice == -1) {
-      console.error(`The reducer's name need to be includes "Reducer" .`);
+      let _logger = Logger.error(
+        'Store',
+        `The reducer's name need to be includes "Reducer" .`,
+        { isPrint: Main.printMode !== "none" }
+      );
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.error(_logger['_str']);
       return null;
     }
     let reducerName = reducer?._name?.slice(0, keywordToSlice);
     reducerName = camelCase(reducerName);
     if (!reducerName) {
-      console.error(`The reducer need to be an Class.`);
+      let _logger = Logger.error(
+        'Store',
+        `The reducer need to be an Class.`,
+        { isPrint: Main.printMode !== "none" }
+      );
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.error(_logger['_str']);
+
       return null;
     }
     if (!reducer?.listen) {
-      console.error(`The reducer need to be an BLoC.`);
+      let _logger = Logger.error(
+        'Store',
+        `The reducer need to be an BLoC.`,
+        { isPrint: Main.printMode !== "none" }
+      );
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.error(_logger['_str']);
+
       return null;
     }
     if (!reducer?.setStore) {
-      console.error(`The reducer need to be extends Reducer.`);
+      let _logger = Logger.error(
+        'Store',
+        `The reducer need to be extends Reducer.`,
+        { isPrint: Main.printMode !== "none" }
+      );
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.error(_logger['_str']);
+
       return null;
     }
     if (this.subscriptionMap.has(reducerName)) {
-      console.warn("Reducer already exist.");
+      let _logger = Logger.warn(
+        'Store',
+        `Reducer already exist.`,
+        { isPrint: Main.printMode !== "none" }
+      );
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.warn(_logger['_str']);
       return null;
     }
     let reducer$;
-    // this.count += 1;
-    // let _lastSettlement;
     reducer$ = reducer.listen(state => {
-      let newState = this._state;
-      newState[reducerName] = state
-      this._state = newState;
+      let newState = this.state;
+      newState[reducerName] = state;
       this._state$.next(newState);
-      // this._stateInstantiate = reducer.turnStateToEntities();
       let _settlement: Settlement = {
         reducerName,
         _previousHash: state['_previousHash'],
         _currentHash: state['_currentHash'],
         lastSettlement: state['lastSettlement']
       }
-      // if (!_lastSettlement) _lastSettlement = _settlement
-      // if (_lastSettlement['_currentHash'] !== _settlement['_currentHash']) {
       this._settlement$.next(_settlement);
-      // _lastSettlement = _settlement;
-      // }
-      // console.log("addReducer", state)
     })
     this._reducers[reducerName] = reducer;
     this.subscription.add(reducer$);
     this.subscriptionMap.set(reducerName, reducer$);
     reducer.setStore(this);
-    // setTimeout(() => {
-    //   console.log(this.count, this.subscriptionMap)
-    // }, 5000);
   }
-
 
 
   subscribe(next?: (state: initialState) => void, error?: (error: any) => void, complete?: () => void): Subscription {
@@ -153,13 +179,13 @@ export class Store<initialState, Reducers> extends Broker {
 
 
   /**
-   * 如果直接 cloneDeep(Store)的話，每次更新都要重新綁全部的邏輯  
-   * 所以根據 settlement的結果修正 RelationStore中的 state  
+   * 如果直接 cloneDeep(Store) 的話，每次更新都要重新綁全部的邏輯  
+   * 所以根據 settlement 的結果修正 RelationStore中的 state  
    * 然後只重新綁訂有更新部分的關係，以達到最小消耗
    */
   private buildRelationStore = () => {
     // let { relationshipConfigTable } = this._CQRS;
-    if (!this._withRelation) this._withRelation = _.cloneDeep(this.state);
+    // if (!this._withRelation) this._withRelation = _.cloneDeep(this.state);
     let StateClone = this._withRelation,
       theReducer: Reducer<any, any>,
       theState: EntityState<any>;
@@ -171,16 +197,17 @@ export class Store<initialState, Reducers> extends Broker {
       LastSettlementToEntity: { create: Entity[]; update: Entity[] } = { create: [], update: [] };
 
     return this.settlement$.pipe(
-      filter((settlement) => !!this._CQRS && !!this._CQRS.relationshipConfigTable),
+      // tap(settlement => console.log),
+      filter((settlement) => !!settlement && !!StateClone && !!Relation.RelationshipConfigTable),
       map(settlement => {
         // 這個 operator 的目的是；整理最新 settlement 的結果   
-        RelationshipConfigTable = this._CQRS.relationshipConfigTable;
+        RelationshipConfigTable = Relation.RelationshipConfigTable;
         SettlementClone = _.cloneDeep(settlement);
         let { lastSettlement } = SettlementClone;
         let { reducerName } = SettlementClone;
-        theReducer = this.reducers[reducerName];
+        theReducer = this.reducers[reducerName]; // e.g. group
         theState = StateClone[reducerName];
-        theConfig = RelationshipConfigTable[reducerName];
+        theConfig = RelationshipConfigTable[pascalCase(reducerName)]; // e.g. Group
 
         LastSettlementToValues = {
           create: Object.values(lastSettlement['create']),
@@ -194,7 +221,6 @@ export class Store<initialState, Reducers> extends Broker {
         if (LastSettlementToValues['update'].length !== 0) {
           Array.from(LastSettlementToValues['update'])
             .map((entityData) => {
-              // if (!!!theState['entities'][entityData['id']]) return;
               let theEntity: Entity = theState['entities'][entityData['id']];
               // 斷開所有連結，稍後會重建
               theEntity.breakAllEntityRelationships();
@@ -227,51 +253,57 @@ export class Store<initialState, Reducers> extends Broker {
           // 遍歷所有的 Entity
           return from(EntityList)
             .pipe(
-              mergeMap((Entity: Entity) => {
+              mergeMap((entity: Entity) => {
                 if (!theConfig || theConfig['_relationshipOptions'].length == 0) {
                   // 如果這個 Entity 並未設定關係的話跳過
                   return of(null)
                 }
-                let { id } = Entity;
-                // 兩個 Entity之間可能有複數種關係，用這個方式去避免被跳過
-                // let _configsIndex = 0;
                 // 遍歷這個 Entity 所有的 relationConfig
                 return from(theConfig['_relationshipOptions'])
                   .pipe(
                     map((relationshipOption) => {
-                      let thisEntityName = camelCase(reducerName), // e.g. groupUser
-                        inputEntityName = camelCase(relationshipOption.inputEntityClassName); // e.g. subTask
-                      let inputEntity = this.reducers[inputEntityName]
-                      // const findTargetRelationOptionIndex = _.findIndex()
+                      // 根據 relationOption 的 input
+                      // 去找尋它現在在 State 的狀況
+                      // 找到跟我有關的所有 Entities去建立關係
+
+                      let inputEntityName = camelCase(relationshipOption.inputEntityClassName); // e.g. subTask
+                      let inputReducerState = StateClone[inputEntityName];
+
+                      let relevanceEntities = selectRelevanceEntity(
+                        inputReducerState,
+                        {
+                          key: relationshipOption['inputEntityOptions']['displayField'],
+                          value: entity[relationshipOption['thisEntityOptions']['displayField']]
+                        }
+                      );
+                      if (relevanceEntities.length !== 0) {
+                        for (const relevanceEntity of relevanceEntities) {
+                          entity.buildRelationship(
+                            relevanceEntity,
+                            relationshipOption
+                          )
+                        }
+                      }
 
                     })
                   )
               })
             )
         }
-        // if (isCreateLengthBeZero && isUpdateLengthBeZero) { }
-        // else if (!isCreateLengthBeZero && isUpdateLengthBeZero) { }
-        // else if (isCreateLengthBeZero && !isUpdateLengthBeZero) { }
-        // else if (!isCreateLengthBeZero && !isUpdateLengthBeZero) { }
-
         let create$ = RelationBuilderObservable(LastSettlementToEntity['create']),
           update$ = RelationBuilderObservable(LastSettlementToEntity['update']);
         return concat(
           isCreateLengthBeZero ? of(null) : create$,
           isUpdateLengthBeZero ? of(null) : update$
+        ).pipe(
+          last(),
         )
-      })
-
-
+      }),
+      map(() => StateClone),
+      catchError(err => of(err))
     );
   }
 
-  private _withRelation: initialState;
-  private _withRelation$ = this.buildRelationStore();
-
-  public get withRelation$() {
-    return this._withRelation$
-  }
 }
 
 // interface StoreMain<initialState, Reducers> {

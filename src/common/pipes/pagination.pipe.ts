@@ -1,7 +1,8 @@
 import * as _ from "lodash"
 import { from, pipe, range } from "rxjs"
 import { filter, map, mapTo, mergeMap, tap } from "rxjs/operators";
-import { EntityState } from "../adapter"
+import { EntityState } from "../interface/adapter.interface";
+// import { EntityState } from "../adapter"
 
 
 /**

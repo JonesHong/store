@@ -47,6 +47,7 @@ import { DateTime } from 'luxon';
 import { Logger } from './logger';
 import { envType } from './env_checker';
 import { camelCase } from "change-case";
+import { Main } from './main';
 
 export abstract class Reducer<action, state> extends Bloc<action, state> {
   _reducerId = `reducer-${uuidV4()}`;
@@ -61,7 +62,8 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
     if (!service.name) {
       let _logger = Logger.error(
         'Reducer',
-        'addService wrong.Check service _name!!'
+        'addService wrong.Check service _name!!',
+        { isPrint: Main.printMode !== "none" }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.error(_logger['_str']);
@@ -223,7 +225,8 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
       default: {
         let _logger = Logger.log(
           'DefaultActionState',
-          `defaultActionState() doesn't handle this action: ${action['type']}.\nMake sure it has been handle in ${this._name}.mapEventToState() or Effect.`
+          `defaultActionState() doesn't handle this action: ${action['type']}.\nMake sure it has been handle in ${this._name}.mapEventToState() or Effect.`,
+          { isPrint: Main.printMode == "detail" }
         );
         if (envType == 'browser' && _logger['options']['isPrint'])
           console.log(_logger['_str']);
@@ -235,7 +238,7 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
       let _logger = Logger.log(
         'DefaultActionState',
         `There is no change after action(${action['type']}):`,
-        { isPrint: false, payload: action }
+        { isPrint: Main.printMode == "detail", payload: action }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.log(_logger['_str']);
@@ -253,6 +256,7 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
     newState['lastSettlement']['dateTime'] = _afterExec.valueOf();
     let _logger = Logger.log(this._name, `DefaultActionState finished.`, {
       execTime,
+      isPrint: Main.printMode == "detail"
     });
     if (envType == 'browser' && _logger['options']['isPrint'])
       console.log(_logger['_str']);
@@ -275,7 +279,10 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
     } else {
       let _logger = Logger.error(
         this._name,
-        `createEntities doesn't handle: ${dataList}`
+        `createEntities doesn't handle: ${dataList}`,
+        {
+          isPrint: Main.printMode !== "none"
+        }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.error(_logger['_str']);
@@ -355,7 +362,10 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
     if (!!!this._store) {
       let _logger = Logger.warn(
         this._name,
-        `Because Store is not ready yet, subscribeTopic will retry in 50 ms.`
+        `Because Store is not ready yet, subscribeTopic will retry in 50 ms.`,
+        {
+          isPrint: Main.printMode !== "none"
+        }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.error(_logger['_str']);

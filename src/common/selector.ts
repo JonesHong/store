@@ -1,8 +1,11 @@
 import { Bloc } from '@felangel/bloc';
 import * as _ from 'lodash';
-import { asapScheduler, combineLatest, Observable, Subscription } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { asapScheduler, combineLatest, Observable, Subscription, zip } from 'rxjs';
+import { filter, map, mergeMap } from 'rxjs/operators';
+import { envType } from './env_checker';
+import { Settlement } from './interface/store.interface';
 import { Logger } from './logger';
+import { Main } from './main';
 
 export function createFeatureSelector<T>(featureName: string): Observable<T> {
   let stream$: Observable<T> = new Observable((observer) => {
@@ -11,21 +14,63 @@ export function createFeatureSelector<T>(featureName: string): Observable<T> {
       observer.next(reducer.state);
       subscription.add(
         reducer.listen((res) => {
-          let newRes = _.cloneDeep(res);
+          let newRes = _.cloneDeep(res); console
           observer.next(newRes);
         })
       );
     };
     if (!this.Store['_reducers'][featureName]) {
-      Logger.error(
+      let _logger = Logger.error(
         'createFeatureSelector',
-        `Can't find the name ${featureName} of reducer in Store.`
+        `Can't find the name ${featureName} of reducer in Store.`,
+        { isPrint: Main.printMode !== "none" }
       );
-      // console.error(
-      //   `[Error] Can't find the name ${featureName} of reducer in Store.`
-      // );
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.error(_logger['_str']);
+
     } else {
       subscribeReducer(this.Store['_reducers'][featureName]);
+    }
+    return {
+      unsubscribe: () => {
+        subscription.unsubscribe();
+      },
+    };
+  });
+
+  return stream$;
+}
+
+export function createRelationSelector<T>(featureName: string): Observable<T> {
+  let stream$: Observable<T> = new Observable((observer) => {
+    let subscription: Subscription = new Subscription();
+    if (!this.Store['withRelation'][featureName]) {
+
+
+      let _logger = Logger.error(
+        'createRelationSelector',
+        `Can't find the name ${featureName} of state in Store.withRelation.`,
+        { isPrint: Main.printMode !== "none" }
+      );
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.error(_logger['_str']);
+
+    } else {
+      // 第一次
+      observer.next(this.Store['withRelation'][featureName])
+
+      subscription.add(
+        zip(this.Store['settlement$'], this.Store['withRelation$'])
+          .pipe(
+            filter(([settlement, withRelation]) => !!settlement && !!this.Store['withRelation'] && settlement['reducerName'] == featureName)
+          )
+          .subscribe(([settlement, withRelation]) => {
+            // 後面每次更新
+            let newRes = _.cloneDeep(withRelation[featureName]);
+            observer.next(newRes);
+
+          })
+      )
     }
     return {
       unsubscribe: () => {
@@ -51,6 +96,14 @@ export const createSelector = (
   );
 };
 
+
+/**
+ * 適用於舊版的 relationConfigOptions，
+ * 重新架 RelationConfigTable以後這段將被棄用
+ * @param state 
+ * @param parameter 
+ * @returns 
+ */
 export const selectRelevanceEntity = (
   state,
   parameter: { key: string; value: any }
@@ -145,6 +198,14 @@ export const selectRelevanceEntity = (
   return payload;
 };
 
+/**
+ * 
+ * 適用於舊版的 relationConfigOptions，
+ * 重新架 RelationConfigTable以後這段將被棄用
+ * @param state 
+ * @param parameter 
+ * @returns 
+ */
 export const selectSourceRelevanceEntity = (
   state,
   parameter: { key: string; value: any }

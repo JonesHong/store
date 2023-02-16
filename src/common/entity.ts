@@ -1,24 +1,16 @@
 import * as _ from 'lodash';
 import { envType } from './env_checker';
-import { InputRelationshipOption, RelationDescription } from './interface/relation.interface';
+import { InputRelationshipOption } from './interface/relation.interface';
 import { Logger } from './logger';
 import { Reducer } from './reducer';
 import { Relation } from "./relation"
 import { customAlphabet } from 'nanoid/non-secure'
 import { v4Generator } from './functions/Generator';
-const nanoid = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', 10);
 
 
-type OptionsRelationDescription = {
-  source: RelationDescription;
-  target: RelationDescription;
-};
-type BuildRelationOptions = {
-  targetKey: string;
-};
 export abstract class Entity {
   abstract _name: string;
-  public id: string;
+  public id?: string;
   private _dataKeySet: Set<string> = new Set();
   private _relationshipKeyMap: Map<string, InputRelationshipOption> = new Map();
 
@@ -89,11 +81,11 @@ export abstract class Entity {
       let key = entity[0],
         value = entity[1];
       this[key] = value;
-      // console.log(key, value);
       this._dataKeySet.add(key);
     });
     if (!!!this.id) this.id = v4Generator();
   };
+
   toObject = (): object => {
     let payload = {};
 
@@ -102,34 +94,34 @@ export abstract class Entity {
     });
 
     // 用來應對動態的關係(未寫入資料庫的)，像是聊天室與成員的關係
-    Array.from(this._relationshipKeyMap.values()).map((options) => {
-      let { isMultiRelationNameEndWithMap = true } = options;
-      let { method } = options.thisEntityOptions;
-      let { relationName, displayField = "id" } = options.inputEntityOptions;
-      let newDisplayField = displayField[0].toUpperCase() + displayField.slice(1);
-      switch (method) {
-        case "setRelationship": {
-          // 此 Entity與對方的關係為"一對一(1:1)"或是"多對一(*:1)"
-          payload[`${relationName}${newDisplayField}`] = this[relationName][displayField];
-          // console.log(111, this._className, options, '\n', this);
-        }
-          break;
-        case "addRelationships": {
-          // 此 Entity與對方的關係為"一對多(1:*)"或是"多對多(*:*)"
-          newDisplayField += 's';
-          if (!!isMultiRelationNameEndWithMap || new RegExp(/.*Map/).test(relationName)) {
-            // console.log(222, this._className, options, '\n', this);
-            payload[relationName.replace("Map", newDisplayField)] = Object.keys(this[relationName]);
-          } else {
-            // console.log(333, this._className, options, '\n', this);
-            payload[`${relationName}${newDisplayField}`] = Object.keys(this[relationName]);
-          }
-        }
-          break;
-      }
-    });
+    // Array.from(this._relationshipKeyMap.values()).map((options) => {
+    //   let { isMultiRelationNameEndWithMap = true } = options;
+    //   let { method } = options.thisEntityOptions;
+    //   let { relationName, displayField = "id" } = options.inputEntityOptions;
+    //   let newDisplayField = displayField[0].toUpperCase() + displayField.slice(1);
+    //   switch (method) {
+    //     case "setRelationship": {
+    //       // 此 Entity與對方的關係為"一對一(1:1)"或是"多對一(*:1)"
+    //       payload[`${relationName}${newDisplayField}`] = this[relationName][displayField];
+    //       // console.log(111, this._className, options, '\n', this);
+    //     }
+    //       break;
+    //     case "addRelationships": {
+    //       // 此 Entity與對方的關係為"一對多(1:*)"或是"多對多(*:*)"
+    //       newDisplayField += 's';
+    //       if (!!isMultiRelationNameEndWithMap || new RegExp(/.*Map/).test(relationName)) {
+    //         // console.log(222, this._className, options, '\n', this);
+    //         payload[relationName.replace("Map", newDisplayField)] = Object.keys(this[relationName]);
+    //       } else {
+    //         // console.log(333, this._className, options, '\n', this);
+    //         payload[`${relationName}${newDisplayField}`] = Object.keys(this[relationName]);
+    //       }
+    //     }
+    //       break;
+    //   }
+    // });
 
-    console.log('\n\n', payload)
+    // console.log('\n\n', payload)
     return payload;
   };
 }

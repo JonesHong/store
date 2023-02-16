@@ -19,9 +19,9 @@ Main.isLogByFIle$.subscribe(isLogByFIle => {
     _logFolderPath = './_logs';
     if (!fs.existsSync(_logFolderPath)) {
       fs.mkdirSync(_logFolderPath);
-      Main.printMode ? log(`Create '${_logFolderPath}'!`) : null;
+      Main.printMode == "detail" ? log(`Create '${_logFolderPath}'!`) : null;
     } else {
-      Main.printMode ? log(warn(`Filepath '${_logFolderPath}' is existed!`)) : null;
+      Main.printMode == "detail" ? log(warn(`Filepath '${_logFolderPath}' is existed!`)) : null;
     }
   }
 

@@ -5,6 +5,7 @@ import { envType } from "./env_checker";
 import { Settlement } from "./interface/store.interface";
 import { Logger } from "./logger";
 import { upperCaseFirst } from "upper-case-first";
+import { Main } from "./main";
 
 
 export abstract class Action {
@@ -73,8 +74,12 @@ export abstract class Action {
         }
         else {
             // console.error(`[Error/Action] setParent with wrong parent.`)
-            let _logger = Logger.error(this.type, "setParent with wrong parent.");
-            if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
+            let _logger = Logger.error(
+                this.type, "setParent with wrong parent.",
+                { isPrint: Main.printMode !== "none" }
+            );
+            if (envType == "browser" && _logger['options']['isPrint'])
+                console.error(_logger['_str']);
         }
     }
     addChild(child: Action) {
@@ -87,8 +92,12 @@ export abstract class Action {
         }
         else {
             // console.error(`[Error/Action] addChild with wrong child.`)
-            let _logger = Logger.error(this.type, "addChild with wrong child.");
-            if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
+            let _logger = Logger.error(
+                this.type, "addChild with wrong child.",
+                { isPrint: Main.printMode !== "none" }
+            );
+            if (envType == "browser" && _logger['options']['isPrint'])
+                console.error(_logger['_str']);
         }
     }
 
@@ -98,9 +107,11 @@ export const transferActionMapToActionList = function (actionMap: object): strin
         // console.error(`[Error/transferActionMapToActionList] Only accept type object, this input type is ${typeof (actionMap)}`)
         let _logger = Logger.error(
             "transferActionMapToActionList",
-            `Only accept type object, this input type is ${typeof (actionMap)}`
+            `Only accept type object, this input type is ${typeof (actionMap)}`,
+            { isPrint: Main.printMode !== "none" }
         );
-        if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
+        if (envType == "browser" && _logger['options']['isPrint'])
+            console.error(_logger['_str']);
         return null;
     }
     // let newActionMap = Object.assign({}, actionMap)
@@ -275,9 +286,11 @@ export const replaceDefaultToEntity = (defaultName: string, reducerName: string)
         // console.error(`[Error] reducerName ids need to be String`);
         let _logger = Logger.error(
             "replaceDefaultToEntity",
-            `reducerName ids need to be String`
+            `reducerName ids need to be String`,
+            { isPrint: Main.printMode !== "none" }
         );
-        if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
+        if (envType == "browser" && _logger['options']['isPrint'])
+            console.error(_logger['_str']);
         return null
     }
     let reducerNameReg = upperCaseFirst(reducerName);
@@ -290,9 +303,11 @@ export const transferDefaultToEntity = (reducerName: string) => {
         // console.error(`[Error] reducerName ids need to be String`);
         let _logger = Logger.error(
             "transferDefaultToEntity",
-            `reducerName ids need to be String`
+            `reducerName ids need to be String`,
+            { isPrint: Main.printMode !== "none" }
         );
-        if (envType == "browser" && _logger['options']['isPrint']) console.error(_logger['_str']);
+        if (envType == "browser" && _logger['options']['isPrint'])
+            console.error(_logger['_str']);
         return null
     }
     let actionMap = _.cloneDeep(CommonActionMap)

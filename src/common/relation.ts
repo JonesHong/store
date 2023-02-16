@@ -1,46 +1,15 @@
-import {
-  catchError,
-  concatMap,
-  delay,
-  filter,
-  last,
-  map,
-  mergeMap,
-  reduce,
-  tap,
-  toArray,
-} from 'rxjs/operators';
-import { from, Observable, of, pipe, concatWith } from 'rxjs';
-import {
-  FromJDLMessage,
-  IEntityRelationConfig,
-  InputRelationshipOption,
-  JDLObject,
-  RelationBuilderMethod,
-  RelationDescription,
-  RelationshipConfigTable,
-  RelationshipFromJDL,
-  RelationshipOptionMethod,
-} from './interface/relation.interface';
-import { Store } from './store';
-import { Settlement } from "./interface/store.interface";
+import { filter, last, map, mergeMap, reduce, } from 'rxjs/operators';
+import { from, pipe } from 'rxjs';
+import { FromJDLMessage, InputRelationshipOption, JDLObject, RelationBuilderMethod, RelationshipConfigTable, RelationshipFromJDL, RelationshipOptionMethod, } from './interface/relation.interface';
 import * as _ from 'lodash';
-import { Reducer } from './reducer';
 import { Entity } from './entity';
-import {
-  addMany,
-  cloneAndReset,
-  removeMany,
-  removeOne,
-  setOne,
-  updateMany,
-} from './adapter';
-import { v4 as uuidV4 } from 'uuid';
-import { selectRelevanceEntity, selectSourceRelevanceEntity } from './selector';
 import { Logger } from './logger';
 import { DateTime } from 'luxon';
 import { Singleton } from './decoratios/singleton';
 import { camelCase } from 'lodash';
+import { Main } from './main';
+import { envType } from './env_checker';
+import { MapToString } from './functions/Transformer';
 
 /**
  * 『只要描述直接關聯的那條線的關係是什麼』
@@ -122,7 +91,8 @@ class _Relation {
   /**
    * https://www.jhipster.tech/managing-relationships/
    */
-  toJDLFormat(config: IEntityRelationConfig) {
+  toJDLFormat(config: any) {
+    console.log('not finished!! now is empty.')
     // let entitiesConfig = Object.entries(config);
     // let RelationshipFromJDL = _.cloneDeep(this.RelationshipFromJDL);
     // from(entitiesConfig)
@@ -496,350 +466,17 @@ class _Relation {
       last()
     )
       .subscribe(val => {
-        // console.log("RelationshipConfigTable:\n", val);
-        console.log("_MessageMap:\n", _MessageMap);
+        let _logger = Logger.log(
+          'Relation.fromJDL',
+          MapToString(_MessageMap),
+          { isPrint: Main.printMode == "detail" }
+        );
+        if (envType == 'browser' && _logger['options']['isPrint'])
+          console.log(_logger['_str']);
         this.RelationshipConfigTable = val;
       })
   }
 
-  private _reducerSettlement: Settlement;
-  public StoreRelation<initialState, Reducers>(
-    store: Store<initialState, Reducers>,
-    config: IEntityRelationConfig
-  ) {
-    let count = 0;
-    // local cache to be compare with new one.
-    // let _reducerSettlement: settlement;
-    // only clone once after init
-    let _stateClone: initialState = _.cloneDeep(store['state']);
-    // for update _stateClonePipe
-    let _reducer: Reducer<any, any>,
-      _values: { create: any[]; update: any[]; delete: string[] },
-      _sourceEntity,
-      _sourceState,
-      _sourceRelationConfigs: RelationDescription[],
-      _targetEntity,
-      _targetState,
-      _targetRelationConfigs: RelationDescription[],
-      _targetRelationConfig: RelationDescription;
-    let _commonRelationPipe: any = () => {
-      return pipe(
-        mergeMap((entity: Entity) => {
-          let entityId = entity['id'];
-          if (!!_sourceRelationConfigs && _sourceRelationConfigs.length !== 0) {
-            let _configsIndex = 0;
-            return from(_sourceRelationConfigs).pipe(
-              map((_sourceRelationConfig) => {
-                const findTargetRelationConfig = () => {
-                  let _payloadIndex = _.findIndex(
-                    _targetRelationConfigs,
-                    (config, index) => {
-                      // console.log(329083038203, _configsIndex, index, config)
-                      // console.log(_configsIndex !== index, config['targetEntity'] == `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`)
-                      if (config['targetEntity'] == `${_sourceEntity[0].toUpperCase()}${_sourceEntity.slice(1)}`
-                      ) {
-                        _configsIndex += 1;
-                        return true;
-                      } else return false;
-                    },
-                    _configsIndex
-                  );
-                  let _payload = _targetRelationConfigs[_payloadIndex]
-
-                  if (!_payload) {
-                    _configsIndex = 0;
-                    return findTargetRelationConfig();
-                  }
-                  return _payload;
-                };
-
-                _targetEntity = `${_sourceRelationConfig['targetEntity'][0].toLowerCase()}${_sourceRelationConfig['targetEntity'].slice(1)}`;
-                _targetState = _stateClone[_targetEntity];
-                _targetRelationConfigs = config[_targetEntity];
-                // console.log(333333,config, _targetEntity, _sourceEntity)
-                _targetRelationConfig = findTargetRelationConfig();
-                // console.log(412, _targetRelationConfig);
-
-                let relevanceEntities = [];
-                switch (_sourceRelationConfig['type']) {
-                  case 'OneToOne': {
-                    relevanceEntities = selectRelevanceEntity(_targetState, {
-                      key: `${_sourceRelationConfig['relationshipName']}Id`,
-                      value: entityId,
-                    });
-                    if (relevanceEntities.length == 0) {
-                      let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                        }`;
-                      relevanceEntities = selectSourceRelevanceEntity(
-                        _targetState,
-                        { key: `${key}Id`, value: entity }
-                      );
-                    }
-                    relevanceEntities.length !== 0
-                      ? entity.setOneToOne(relevanceEntities, {
-                        target: _targetRelationConfig,
-                        source: _sourceRelationConfig,
-                      })
-                      : null;
-                    // relevanceEntities.length !== 0 ? entity.setOneToOne(relevanceEntities) : null;
-                    break;
-                  }
-                  case 'OneToMany': {
-                    // target是多的那邊
-                    relevanceEntities = selectRelevanceEntity(_targetState, {
-                      key: `${_targetRelationConfig['referencesField']}`,
-                      value: entityId,
-                    });
-
-                    // if (entityId == "constructionLocation-33941722-a859-43c5-920a-34015ca5d730") {
-                    // console.log(23823098, relevanceEntities)
-                    // }
-
-                    if (relevanceEntities.length == 0) {
-                      let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                        }`;
-                      relevanceEntities = selectSourceRelevanceEntity(
-                        _targetState,
-                        { key: `${key}Id`, value: entity }
-                      );
-                    }
-
-                    relevanceEntities.length !== 0
-                      ? entity.addManyToOne(relevanceEntities, {
-                        target: _targetRelationConfig,
-                        source: _sourceRelationConfig,
-                      })
-                      : null;
-
-                    // relevanceEntities.length !== 0 ? entity.addManyToOne(relevanceEntities) : null;
-                    break;
-                  }
-                  case 'ManyToOne': {
-                    // 依照
-                    relevanceEntities = selectRelevanceEntity(_targetState, {
-                      key: `${_targetRelationConfig['referencesEntity']}`,
-                      value: entity[_sourceRelationConfig['referencesField']],
-                    });
-                    if (relevanceEntities.length == 0) {
-                      let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                        }`;
-                      relevanceEntities = selectSourceRelevanceEntity(
-                        _targetState,
-                        { key: `${key}s`, value: entity }
-                      );
-                    }
-
-                    relevanceEntities.length !== 0
-                      ? entity.setOneToMany(relevanceEntities, {
-                        target: _targetRelationConfig,
-                        source: _sourceRelationConfig,
-                      })
-                      : null;
-                    // relevanceEntities.length !== 0 ? entity.setOneToMany(relevanceEntities) : null;
-                    break;
-                  }
-                  case 'ManyToMany': {
-                    // relevanceEntities = selectRelevanceEntity(_targetState, { key: `${_sourceRelationConfig['referencesField']}IdList`, value: entityId });
-                    relevanceEntities = selectRelevanceEntity(_targetState, {
-                      key: `${_sourceRelationConfig['referencesField']}`,
-                      value: entityId,
-                    });
-                    if (relevanceEntities.length == 0) {
-                      let sourceKey = _sourceRelationConfig['targetEntity'];
-                      let key = `${sourceKey[0].toLowerCase() + sourceKey.slice(1)
-                        }`;
-                      relevanceEntities = selectSourceRelevanceEntity(
-                        _targetState,
-                        { key: `${key}s`, value: entity }
-                      );
-                    }
-                    relevanceEntities.length !== 0
-                      ? entity.addManyToMany(relevanceEntities, {
-                        target: _targetRelationConfig,
-                        source: _sourceRelationConfig,
-                      })
-                      : null;
-                    // relevanceEntities.length !== 0 ? entity.addManyToMany(relevanceEntities) : null;
-                    break;
-                  }
-                }
-              })
-            );
-          } else {
-            return of(null);
-          }
-        }),
-        last()
-      );
-    };
-
-    return store.settlement$.pipe(
-      filter((reducerSettlement: Settlement) => {
-        return (
-          !!store &&
-          (!this._reducerSettlement ||
-            this._reducerSettlement['_currentHash'] !==
-            reducerSettlement['_currentHash'])
-        );
-      }),
-      // filter((reducerSettlement: settlement) => {
-      //     return !!reducerSettlement['lastSettlement']['isChanged'];
-      // }),
-      mergeMap((reducerSettlement) => {
-        let _reducerSettlement = _.cloneDeep(reducerSettlement);
-        this._reducerSettlement = _reducerSettlement;
-
-        if (!!_reducerSettlement['lastSettlement']['isChanged']) {
-          return of(_reducerSettlement).pipe(
-            // update _stateClone
-            map((_reducerSettlement) => {
-              _sourceEntity = _reducerSettlement['reducerName'];
-              _reducer = store['reducers'][_reducerSettlement['reducerName']];
-              //   _sourceState = cloneAndReset(
-              //     _stateClone[_reducerSettlement['reducerName']]
-              //   );
-              _sourceState = _stateClone[_sourceEntity];
-
-              _values = {
-                create: _reducer.createEntities(
-                  Object.values(_reducerSettlement['lastSettlement']['create'])
-                ),
-                // update: _reducer.createEntities(
-                //   Object.values(_reducerSettlement['lastSettlement']['update'])
-                // ),
-                update: Object.values(
-                  _reducerSettlement['lastSettlement']['update']
-                ),
-                delete: Object.values(
-                  _reducerSettlement['lastSettlement']['delete']
-                ),
-              };
-
-              //   _sourceRelationConfigs = config[reducerSettlement['reducerName']];
-              _sourceRelationConfigs = config[_sourceEntity];
-              _values.create.length !== 0
-                ? (_sourceState = addMany(_values.create, _sourceState))
-                : null;
-              //   _values.update.length !== 0
-              //     ? (_sourceState = updateMany(_values.update, _sourceState))
-              //     : null;
-              //更新=>先斷開連結再重新build
-              _values['update'] = _values['update']
-                .map((entityObject) => {
-                  // console.log(
-                  //   entityObject,
-                  //   _sourceState,
-                  //   _sourceState['ids'].find((id) => id == entityObject['id'])
-                  // );
-                  if (
-                    !_sourceState['ids'].find((id) => id == entityObject['id'])
-                  ) {
-                    // Logger.warn()
-                    return;
-                  }
-                  let _entity =
-                    _stateClone[_sourceEntity]['entities'][entityObject['id']];
-                  // 可能有問題，先試試看
-                  _entity.breakAllReferences();
-                  // console.log(_entity)
-                  _entity = _reducer.createEntity(entityObject);
-                  // Object.entries(entityObject).map(entry => {
-                  //     // console.log(_key)
-                  //     let _key = entry[0], _val = entry[1];
-                  //     _entity[_key] = _val;
-                  // })
-                  _sourceState = setOne(_entity, _sourceState);
-                  return _entity;
-                })
-                .filter((entity) => !!entity);
-              // 先斷開連結才刪除
-              _values['delete'].map((id: string) => {
-                let _entity: Entity = selectRelevanceEntity(_sourceState, {
-                  key: 'id',
-                  value: id,
-                })[0];
-                _entity.breakAllReferences();
-                _sourceState = removeOne(id, _sourceState);
-              });
-              // _values.delete.length !== 0 ? _sourceState = removeMany(_values.delete, _sourceState) : null;
-              _sourceState['_previousHash'] = _sourceState['_currentHash'];
-              _sourceState['_currentHash'] = `settlement-${uuidV4()}`;
-              //   _stateClone[reducerSettlement['reducerName']] = _sourceState;
-              _sourceState.lastSettlement = reducerSettlement['lastSettlement'];
-              _stateClone[_sourceEntity] = _sourceState;
-
-              return _reducerSettlement;
-            }),
-            mergeMap((ignoreAnyway) => {
-              if (_values['create'].length !== 0) {
-                return from(_values['create']).pipe(
-                  // concatMap(val => of(val).pipe(delay(1))),
-                  _commonRelationPipe()
-                );
-              } else {
-                return of(null);
-              }
-            }),
-            mergeMap((ignoreAnyway) => {
-              if (_values['update'].length !== 0) {
-                return from(_values['update']).pipe(_commonRelationPipe());
-              } else {
-                return of(null);
-              }
-            })
-            // concatWith(
-            //   of(_reducerSettlement).pipe(
-            //     mergeMap((_reducerSettlement) => {
-            //       if (_values['create'].length !== 0) {
-            //         return from(_values['create']).pipe(
-            //           // concatMap(val => of(val).pipe(delay(1))),
-            //           _commonRelationPipe()
-            //         );
-            //       } else {
-            //         return of(null);
-            //       }
-            //     })
-            //   ),
-            //   of(_reducerSettlement).pipe(
-            //     mergeMap((reducerSettlement) => {
-            //       if (_values['update'].length !== 0) {
-            //         return from(_values['update']).pipe(_commonRelationPipe());
-            //       } else {
-            //         return of(null);
-            //       }
-            //     })
-            //   )
-            // )
-            // Do create first
-            // mergeMap((reducerSettlement) => {
-            //   if (_values['create'].length !== 0) {
-            //     return from(_values['create']).pipe(_commonRelationPipe());
-            //   } else {
-            //     return of(null);
-            //   }
-            // }),
-            // mergeMap((reducerSettlement) => {
-            //   if (_values['update'].length !== 0) {
-            //     return from(_values['update']).pipe(_commonRelationPipe());
-            //   } else {
-            //     return of(null);
-            //   }
-            // })
-          );
-        } else {
-          return of(null);
-        }
-      }),
-      // last(),
-      map((res: null) => _stateClone),
-      catchError((err) => {
-        return of(err);
-      })
-    );
-  }
 
 
   public switchRelationshipOptions = (options: InputRelationshipOption) => {
@@ -850,19 +487,23 @@ class _Relation {
     }
   }
   public buildRelationship: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
-    let { method } = options.thisEntityOptions;
-    thisEntity[method](inputEntity, options);
+    let { method } = options.inputEntityOptions;
+    thisEntity[method](inputEntity, this.switchRelationshipOptions(options));
   }
   public setRelationship: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
     let {
       relationName = `_${camelCase(inputEntity._name)}`,
+    } = options.thisEntityOptions;
+    let {
+      // relationName = `_${camelCase(inputEntity._name)}`,
       displayField = "id",
       method
     } = options.inputEntityOptions;
+    if (relationName[0] !== "_") relationName = '_' + relationName;
     // console.log(`${thisEntity._name}.setRelationship:\n`, options, '\n', thisEntity);
     if (!!thisEntity[relationName]) return;
     thisEntity[relationName] = inputEntity;
-    options['inputEntityClassName'] = inputEntity._name;
+    // options['inputEntityClassName'] = inputEntity._name;
     thisEntity.setRelationshipKeyMap(relationName, options);
 
     inputEntity[method](
@@ -871,12 +512,15 @@ class _Relation {
     )
   }
   public addRelationships: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
-    let { isMultiRelationNameEndWithMap = true } = options;
+    let { isMultiRelationNameEndWithMap = false } = options;
     let {
       relationName = `_${camelCase(inputEntity._name)}`,
+    } = options.thisEntityOptions;
+    let {
       displayField = "id",
       method
     } = options.inputEntityOptions;
+    if (relationName[0] !== "_") relationName = '_' + relationName;
     if (isMultiRelationNameEndWithMap) {
       relationName = relationName.slice(-3) === "Map" ? relationName : `${relationName}Map`;
       options['inputEntityOptions']['relationName'] = relationName;
@@ -885,7 +529,7 @@ class _Relation {
     if (!!!thisEntity[relationName]) thisEntity[relationName] = {};
     if (!!thisEntity[relationName][inputEntity[displayField]]) return;
     thisEntity[relationName][inputEntity[displayField]] = inputEntity;
-    options['inputEntityClassName'] = inputEntity._name;
+    // options['inputEntityClassName'] = inputEntity._name;
     thisEntity.setRelationshipKeyMap(relationName, options);
 
     inputEntity[method](
