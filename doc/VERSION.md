@@ -1,5 +1,10 @@
 # 歷史版本紀錄
 
+### 1.2.0
+* 部分變數和型態重新命名並加上註解
+* 重新架構 FromJDL的部分，讓 Entity間的關係可以是複數，連帶的 RelationStore也重構了，原本是放在 CqrsMain & relation下面，現在在 Store.withRelation$中
+* 修正沒有 Effect ，Action 無法被 dispatch 到 Store
+* 新增 Main暫時做為一些設定檔的位置，可藉由它開啟關閉 log模式
 ### 1.1.8
 修正entity中多個key同時指向同一 target entity 無法指定key
 ### 1.1.7
