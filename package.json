@@ -1,6 +1,6 @@
 {
   "name": "mycena-store",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "For mirgation",
   "author": {
     "name": "JonesHong",
@@ -69,7 +69,7 @@
     "lodash": "^4.17.21",
     "lowdb": "^1.0.0",
     "luxon": "^3.0.3",
-    "nanoid": "^4.0.1",
+    "nanoid": "^3.3.4",
     "path": "^0.12.7",
     "reflect-metadata": "^0.1.13",
     "rxjs": "~7.5.6",

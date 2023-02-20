@@ -198,6 +198,7 @@ export class CQRS<initialState, Reducers> {
         }
       );
   }
+
   private effectRetryCount = 0;
   private effectRetryInterval = 100;
   private isEffectLoaded$ = new BehaviorSubject(false);

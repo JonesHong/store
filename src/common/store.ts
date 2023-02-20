@@ -60,8 +60,9 @@ export class Store<initialState, Reducers> extends Broker {
   public get settlement$() {
     return this._settlement$.asObservable()
       .pipe(
-      // SettlementChanged(this._settlement$)
-    );
+        SettlementChanged()
+        // SettlementChanged(this._settlement$)
+      );
   }
   // private _settlementsLogSize = 100;
   // private _settlementsLog = [];

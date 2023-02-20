@@ -248,7 +248,7 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
         newState['_previousHash'] = newState['_currentHash'] || null;
         newState['_currentHash'] = `settlement-${uuidV4()}`;
       }
-      // newState['lastSettlement']['actionId'] = action['actionId'];
+      newState['lastSettlement']['actionId'] = action['actionId'];
     }
     // console.timeEnd(_timeLabel);
     let _afterExec = DateTime.now();
