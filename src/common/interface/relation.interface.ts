@@ -18,6 +18,7 @@ import { Entity } from "../entity";
  * * with jpaDerivedIdentifier 或 @MapsId 用于关联关系 (仅适用于一对一（one-to-one）  
  */
 export interface Relationship {
+    entity: string;
     /** 
      * ? What is the name of the relationship?   
      * First Level, Entity itself's key(property).  
@@ -49,7 +50,8 @@ export interface InputRelationshipOption {
     inputEntityOptions: RelationshipOption,
     thisEntityOptions: RelationshipOption,
     isMultiRelationNameEndWithMap?: boolean,
-    inputEntityClassName?: string,
+    // inputEntityClassName?: string,
+    RelationType: RelationType;
 }
 export type RelationshipConfig = {
     _relationshipOptions: InputRelationshipOption[];
@@ -80,6 +82,7 @@ export interface RelationshipFromJDL {
     "ManyToOne"?: Set<string>;
     "ManyToMany"?: Set<string>;
 }
+export type RelationType = "OneToOne" | "OneToMany" | "ManyToOne" | "ManyToMany";
 interface FromJDLMessageBase {
     type: string,
     dateTimeString?: string;
@@ -117,6 +120,6 @@ export interface JDLObject {
     toDisplayField: string
 }
 
-export type RelationBuilderMethod = ({ thisEntity, inputEntity }: { thisEntity: Entity, inputEntity?: Entity }, options: InputRelationshipOption) => void;
+export type RelationBuilderMethod = ({ thisEntity, inputEntity }: { thisEntity: Entity, inputEntity?: Entity }, options: InputRelationshipOption, counts?: number) => void;
 
 

@@ -24,18 +24,21 @@ class _Main {
   private static instance: _Main;
   public static getInstance: () => _Main;
   private constructor() { }
-  private _isLogByFIle$: BehaviorSubject<boolean> = new BehaviorSubject(false);
-  public get isLogByFIle$() {
-    return this._isLogByFIle$.asObservable();
-  }
-  public get isLogByFIle() {
-    return this._isLogByFIle$.value;
-  }
+  public isLogByFIle$: BehaviorSubject<boolean> = new BehaviorSubject(false);
+  // public get isLogByFIleSubject() {
+  //   return this._isLogByFIle$;
+  // }
+  // public get isLogByFIle$() {
+  //   return this._isLogByFIle$.asObservable();
+  // }
+  // public get isLogByFIle() {
+  //   return this._isLogByFIle$.value;
+  // }
   // public readonly isLogByFIle: boolean = false;
   /** 
-   * detail: log & warn & error
-   * expectLog: warn & error
-   * none: disable all print in mycena-store
+   * **detail:** log & warn & error  
+   * **expectLog:** warn & error  
+   * **none:** disable all print in mycena-store  
   */
   public printMode: "detail" | "expectLog" | "none" = "expectLog";
   public isUseEffect: boolean = false;

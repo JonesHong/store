@@ -267,24 +267,133 @@ export class Store<initialState, Reducers> extends Broker {
                       // 去找尋它現在在 State 的狀況
                       // 找到跟我有關的所有 Entities去建立關係
 
-                      let inputEntityName = camelCase(relationshipOption.inputEntityClassName); // e.g. subTask
-                      let inputReducerState = StateClone[inputEntityName];
+                      let thisEntityName = camelCase(relationshipOption.thisEntityOptions.entity); // e.g. billOfMaterials
+                      let inputEntityName = camelCase(relationshipOption.inputEntityOptions.entity); // e.g. subTask
 
-                      let relevanceEntities = selectRelevanceEntity(
-                        inputReducerState,
-                        {
-                          key: relationshipOption['inputEntityOptions']['displayField'],
-                          value: entity[relationshipOption['thisEntityOptions']['displayField']]
-                        }
-                      );
-                      if (relevanceEntities.length !== 0) {
-                        for (const relevanceEntity of relevanceEntities) {
-                          entity.buildRelationship(
-                            relevanceEntity,
-                            relationshipOption
-                          )
+                      const findRelevanceAndBuildUp = (ForeignKey: string, ForeignKeyValue: string) => {
+                        // let inputReducerState = StateClone[inputEntityName];
+                        let relevanceEntities = selectRelevanceEntity(
+                          StateClone[inputEntityName],
+                          {
+                            key: ForeignKey,
+                            value: ForeignKeyValue // string
+                          }
+                        );
+                        if (relevanceEntities.length !== 0) {
+                          for (const relevanceEntity of relevanceEntities) {
+                            entity.buildRelationship(
+                              relevanceEntity,
+                              relationshipOption
+                            )
+                          }
                         }
                       }
+
+                      // let ForeignKey = relationshipOption['inputEntityOptions']['displayField'],
+                      // ForeignKeyValue = entity[relationshipOption['thisEntityOptions']['displayField']];
+                      // // 目前想到有三種可能: string. string[], Relationship[]
+
+                      switch (relationshipOption.RelationType) {
+                        case "OneToOne":
+                        case "OneToMany":
+                        case "ManyToOne": {
+                          // 拿自己 displayField的值，去對方的 displayField想找關練值 ForeignKey
+
+                          // let inputReducerState = StateClone[inputEntityName];
+                          let ForeignKey = relationshipOption['inputEntityOptions']['displayField'],
+                            ForeignKeyValue = entity[relationshipOption['thisEntityOptions']['displayField']];
+                          findRelevanceAndBuildUp(ForeignKey, ForeignKeyValue);
+                          break;
+                        }
+                        case "ManyToMany": {
+                          // 拿自己 displayField[]的值，去對方的 displayField想找關練值 ForeignKey[]
+                          let defaultRelationKey = 'id';
+                          let ForeignKeyValues: any[] = entity[relationshipOption['thisEntityOptions']['displayField']];
+                          // console.log(entity, relationshipOption['thisEntityOptions']['displayField'], ForeignKeyValues)
+                          for (const ForeignKeyValue of ForeignKeyValues) {
+                            // 有兩種可能 string[] or Relationship[]
+                            switch (typeof ForeignKeyValues) {
+                              case "string": {
+                                // 是 string[]
+                                findRelevanceAndBuildUp(defaultRelationKey, ForeignKeyValue);
+                                break;
+                              }
+                              case "object": {
+                                // 是 RelationShip[]
+                                findRelevanceAndBuildUp(defaultRelationKey, ForeignKeyValue[defaultRelationKey]);
+                                break;
+                              }
+                              default: {
+                                let _logger = Logger.error(
+                                  'Store',
+                                  `buildRelationStore.RelationBuilderObservable RelationValue type is not supported!`,
+                                  { isPrint: Main.printMode !== "none" }
+                                );
+                                if (envType == 'browser' && _logger['options']['isPrint'])
+                                  console.error(_logger['_str']);
+                                break;
+                              }
+                            }
+
+                          }
+                          // let inputReducerState = StateClone[inputEntityName];
+
+                          break;
+                        }
+                      }
+                      // switch (typeof ForeignKeyValue) {
+                      //   case "string": {
+                      //     // OneToOne, OneToMany, ManyToOne
+                      //     // 通常直接記得關聯方的 foreign key
+                      //     findRelevanceAndBuildUp(ForeignKey, ForeignKeyValue);
+                      //     break;
+                      //   }
+                      //   case "object": {
+                      //     if (Array.isArray(ForeignKeyValue)) {
+                      //       // ManyToMany
+                      //       for (const RelationValue of ForeignKeyValue) {
+                      //         let defaultRelationKey = 'id';
+                      //         switch (typeof RelationValue) {
+                      //           case "string": {
+                      //             // 這代表 Neo4J的線 Relation的部分將關聯對方的 id匯集起來記在這裡
+                      //             findRelevanceAndBuildUp(defaultRelationKey, RelationValue);
+                      //             break;
+                      //           }
+                      //           case "object": {
+                      //             // 這代表 Neo4J的線 Relation的部分將關聯對方的 id加上 Relation的其他 Property匯集起來記在這裡
+                      //             console.log(`RelationValue[defaultRelationKey]: ${RelationValue[defaultRelationKey]}`)
+                      //             findRelevanceAndBuildUp(defaultRelationKey, RelationValue[defaultRelationKey]);
+                      //             break;
+                      //           }
+                      //           default: {
+                      //             let _logger = Logger.error(
+                      //               'Store',
+                      //               `buildRelationStore.RelationBuilderObservable RelationValue type is not supported!`,
+                      //               { isPrint: Main.printMode !== "none" }
+                      //             );
+                      //             if (envType == 'browser' && _logger['options']['isPrint'])
+                      //               console.error(_logger['_str']);
+                      //             break;
+                      //           }
+                      //         }
+                      //       }
+
+                      //     }
+                      //     break;
+                      //   }
+                      //   default: {
+                      //     let _logger = Logger.error(
+                      //       'Store',
+                      //       `buildRelationStore.RelationBuilderObservable value type is not supported!`,
+                      //       { isPrint: Main.printMode !== "none" }
+                      //     );
+                      //     if (envType == 'browser' && _logger['options']['isPrint'])
+                      //       console.error(_logger['_str']);
+                      //     break;
+                      //   }
+
+                      // }
+
 
                     })
                   )

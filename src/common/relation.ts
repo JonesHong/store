@@ -388,7 +388,6 @@ class _Relation {
             case "OneToMany": {
               inputEntityOptionsMethod = "addRelationships";
               thisEntityOptionsMethod = "setRelationship";
-
             }
               break;
             case "ManyToOne": {
@@ -415,31 +414,35 @@ class _Relation {
           let { _relationshipOptions, _relatedEntityMap, _relatedRelationNameMap } = accumulator[jdlObject[`${direction}EntityString`]];
 
           let tempRelationshipOption: InputRelationshipOption = {
-            inputEntityClassName: jdlObject[`${oppositeDirection}EntityString`],
+            RelationType: keyClone,
+            // inputEntityClassName: jdlObject[`${oppositeDirection}EntityString`],
             inputEntityOptions: {
+              entity: jdlObject[`${oppositeDirection}EntityString`],
               relationName: jdlObject[`${direction}RelationName`],
               displayField: jdlObject[`${direction}DisplayField`],
               method: inputEntityOptionsMethod
             },
             thisEntityOptions: {
+              entity: jdlObject[`${direction}EntityString`],
               relationName: jdlObject[`${oppositeDirection}RelationName`],
               displayField: jdlObject[`${oppositeDirection}DisplayField`],
               method: thisEntityOptionsMethod
             }
           };
+          // _relatedEntityMap.set(jdlObject[`${oppositeDirection}EntityString`], tempRelationshipOption);
+
           // _relatedEntityMap: 一種 Entity可能會有複數的關係
           // User 跟 User，可以是父母、兄弟、夫妻
           // _relatedRelationNameMap: 一種關係只應該有一種 Entity
           // 夫妻關係只會是 User 跟 User，不會是 User 跟 Group
-          _relationshipOptions.push(tempRelationshipOption);
-          let relationOptionsList: InputRelationshipOption[] = _relatedEntityMap.has(jdlObject[`${oppositeDirection}EntityString`]) ? _relatedEntityMap.get(jdlObject[`${oppositeDirection}EntityString`]) : [];
-          relationOptionsList.push(tempRelationshipOption)
-          _relatedEntityMap.set(jdlObject[`${oppositeDirection}EntityString`], relationOptionsList);
-          // _relatedEntityMap.set(jdlObject[`${oppositeDirection}EntityString`], tempRelationshipOption);
           if (accumulator[jdlObject[`${direction}EntityString`]]._relatedRelationNameMap.has(jdlObject[`${direction}RelationName`])) {
             setMessageMap(jdlObject[`${direction}RelationName`], { type: "error", description: "displayFieldMustBeUnique" });
           }
           else {
+            _relationshipOptions.push(tempRelationshipOption);
+            let relationOptionsList: InputRelationshipOption[] = _relatedEntityMap.has(jdlObject[`${oppositeDirection}EntityString`]) ? _relatedEntityMap.get(jdlObject[`${oppositeDirection}EntityString`]) : [];
+            relationOptionsList.push(tempRelationshipOption)
+            _relatedEntityMap.set(jdlObject[`${oppositeDirection}EntityString`], relationOptionsList);
             _relatedRelationNameMap.set(jdlObject[`${direction}RelationName`], tempRelationshipOption);
           }
 
@@ -479,9 +482,11 @@ class _Relation {
 
 
 
-  public switchRelationshipOptions = (options: InputRelationshipOption) => {
+  public switchRelationshipOptions = (options: InputRelationshipOption): InputRelationshipOption => {
+    // let inputEntityName = inputEntity['_name'].replace(/Entity/, '');
     return {
       ...options,
+      // inputEntityClassName: options.thisEntityOptions.entity,
       inputEntityOptions: options.thisEntityOptions,
       thisEntityOptions: options.inputEntityOptions,
     }
@@ -490,7 +495,7 @@ class _Relation {
     let { method } = options.inputEntityOptions;
     thisEntity[method](inputEntity, this.switchRelationshipOptions(options));
   }
-  public setRelationship: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
+  public setRelationship: RelationBuilderMethod = ({ thisEntity, inputEntity }, options, count = 0) => {
     let {
       relationName = `_${camelCase(inputEntity._name)}`,
     } = options.thisEntityOptions;
@@ -499,19 +504,22 @@ class _Relation {
       displayField = "id",
       method
     } = options.inputEntityOptions;
+    if (count > 1) return; // ManyToMany do switch more than one.
     if (relationName[0] !== "_") relationName = '_' + relationName;
     // console.log(`${thisEntity._name}.setRelationship:\n`, options, '\n', thisEntity);
     if (!!thisEntity[relationName]) return;
     thisEntity[relationName] = inputEntity;
     // options['inputEntityClassName'] = inputEntity._name;
     thisEntity.setRelationshipKeyMap(relationName, options);
+    // inputEntity.setRelationshipKeyMap(relationName, options); // 待測試
 
+    count++;
     inputEntity[method](
       thisEntity,
       this.switchRelationshipOptions(options)
     )
   }
-  public addRelationships: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
+  public addRelationships: RelationBuilderMethod = ({ thisEntity, inputEntity }, options, count = 0) => {
     let { isMultiRelationNameEndWithMap = false } = options;
     let {
       relationName = `_${camelCase(inputEntity._name)}`,
@@ -520,18 +528,23 @@ class _Relation {
       displayField = "id",
       method
     } = options.inputEntityOptions;
+
+    if (options.RelationType === "ManyToMany") displayField = "id";
     if (relationName[0] !== "_") relationName = '_' + relationName;
     if (isMultiRelationNameEndWithMap) {
       relationName = relationName.slice(-3) === "Map" ? relationName : `${relationName}Map`;
       options['inputEntityOptions']['relationName'] = relationName;
     }
+    if (count > 1) return; // ManyToMany do switch more than one.
     // console.log(`${thisEntity._name}.addRelationships:\n`, options, '\n', thisEntity);
     if (!!!thisEntity[relationName]) thisEntity[relationName] = {};
     if (!!thisEntity[relationName][inputEntity[displayField]]) return;
     thisEntity[relationName][inputEntity[displayField]] = inputEntity;
     // options['inputEntityClassName'] = inputEntity._name;
     thisEntity.setRelationshipKeyMap(relationName, options);
+    // inputEntity.setRelationshipKeyMap(relationName, options); // 待測試
 
+    count++;
     inputEntity[method](
       thisEntity,
       this.switchRelationshipOptions(options)

@@ -13,7 +13,7 @@ const warn = chalk.hex('#FFA500'); // Orange color
 
 //
 let _logFolderPath;
-Main.isLogByFIle$.subscribe(isLogByFIle => {
+Main.isLogByFIle$.asObservable().subscribe(isLogByFIle => {
   if (!!isLogByFIle && envType == 'nodejs') {
     var fs = require('fs');
     _logFolderPath = './_logs';
@@ -56,14 +56,14 @@ class _Logger {
 
   private _logPath;
   private constructor() {
-    this.init();
-  }
-  private init() {
-    Main.isLogByFIle$.subscribe(isLogByFIle => {
+    Main.isLogByFIle$.asObservable().subscribe(isLogByFIle => {
       if (!!isLogByFIle) this.init();
     });
+    // this.init();
+  }
+  private init() {
 
-    if (!!Main.isLogByFIle && envType == 'nodejs') {
+    if (envType == 'nodejs') {
       var fs = require('fs');
       var path = require('path');
       this._logPath = path.resolve(
@@ -96,7 +96,7 @@ class _Logger {
       }
     }
 
-    if (!!Main.isLogByFIle && envType == 'nodejs') {
+    if (!!Main.isLogByFIle$.value && envType == 'nodejs') {
       var fs = require('fs');
       let _logsData = fs.readFileSync(this._logPath, { encoding: 'utf-8' });
       let _payload = `${_logsData}\n${stripAnsi(_str)}`;
