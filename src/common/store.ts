@@ -37,11 +37,11 @@ export class Store<initialState, Reducers> extends Broker {
   // private _lastSettlement: settlement;
   private _CQRS: CQRS<initialState, Reducers>;
   private _reducers: Reducers;
-  private _withRelation: initialState;
-  private _withRelation$: Observable<initialState>;
+  // private _withRelation: initialState;
+  private _withRelation$: BehaviorSubject<initialState> = new BehaviorSubject(null);
 
   public get withRelation() {
-    return this._withRelation
+    return this._withRelation$.value;
   }
   public get withRelation$() {
     return this._withRelation$
@@ -90,8 +90,9 @@ export class Store<initialState, Reducers> extends Broker {
     this._state$ = new BehaviorSubject(initialState);
 
     if (!this.withRelation) {
-      this._withRelation = _.cloneDeep(this.state);
-      this._withRelation$ = this.buildRelationStore()
+      let stateClone = _.cloneDeep(this.state);
+      this._withRelation$.next(stateClone)
+      this.buildRelationStore()
     }
   }
   // count = 0
@@ -187,7 +188,7 @@ export class Store<initialState, Reducers> extends Broker {
   private buildRelationStore = () => {
     // let { relationshipConfigTable } = this._CQRS;
     // if (!this._withRelation) this._withRelation = _.cloneDeep(this.state);
-    let StateClone = this._withRelation,
+    let StateClone = this._withRelation$.value,
       theReducer: Reducer<any, any>,
       theState: EntityState<any>;
     let JDLObject: JDLObject,
@@ -197,221 +198,225 @@ export class Store<initialState, Reducers> extends Broker {
       theConfig: RelationshipConfig,
       LastSettlementToEntity: { create: Entity[]; update: Entity[] } = { create: [], update: [] };
 
-    return this.settlement$.pipe(
-      // tap(settlement => console.log),
-      filter((settlement) => !!settlement && !!StateClone && !!Relation.RelationshipConfigTable),
-      map(settlement => {
-        // 這個 operator 的目的是；整理最新 settlement 的結果   
-        RelationshipConfigTable = Relation.RelationshipConfigTable;
-        SettlementClone = _.cloneDeep(settlement);
-        let { lastSettlement } = SettlementClone;
-        let { reducerName } = SettlementClone;
-        theReducer = this.reducers[reducerName]; // e.g. group
-        theState = StateClone[reducerName];
-        theConfig = RelationshipConfigTable[pascalCase(reducerName)]; // e.g. Group
+    this.settlement$
+      .pipe(
+        // tap(settlement => console.log),
+        filter((settlement) => !!settlement && !!StateClone && !!Relation.RelationshipConfigTable),
+        map(settlement => {
+          // 這個 operator 的目的是；整理最新 settlement 的結果   
+          RelationshipConfigTable = Relation.RelationshipConfigTable;
+          SettlementClone = _.cloneDeep(settlement);
+          let { lastSettlement } = SettlementClone;
+          let { reducerName } = SettlementClone;
+          theReducer = this.reducers[reducerName]; // e.g. group
+          theState = StateClone[reducerName];
+          theConfig = RelationshipConfigTable[pascalCase(reducerName)]; // e.g. Group
 
-        LastSettlementToValues = {
-          create: Object.values(lastSettlement['create']),
-          update: Object.values(lastSettlement['update']),
-          delete: Object.values(lastSettlement['delete']),
-        };
-        if (LastSettlementToValues['create'].length !== 0) {
-          LastSettlementToEntity['create'] = theReducer.createEntities(LastSettlementToValues['create']);
-          theState = addMany(LastSettlementToEntity['create'], theState);
-        }
-        if (LastSettlementToValues['update'].length !== 0) {
-          Array.from(LastSettlementToValues['update'])
-            .map((entityData) => {
-              let theEntity: Entity = theState['entities'][entityData['id']];
-              // 斷開所有連結，稍後會重建
-              theEntity.breakAllEntityRelationships();
-              let newEntity = theReducer.createEntity(entityData);
-              LastSettlementToEntity['update'].push(newEntity);
-              theState = setOne(newEntity, theState);
-              return entityData;
-            })
-        };
-        if (LastSettlementToValues['delete'].length !== 0) {
-          Array.from(LastSettlementToValues['delete'])
-            .map((id: string) => {
-              let theEntity: Entity = theState['entities'][id];
-              // 斷開所有連結
-              theEntity.breakAllEntityRelationships();
-              // 從 state中刪除
-              theState = removeOne(id, theState);
-            })
-        }
-        StateClone[reducerName] = theState;
-        return { SettlementClone, reducerName };
-      }),
-      mergeMap(({ SettlementClone, reducerName }) => {
-        // 這個 operator 的目的是；針對 settlement 中的 create, update 的部分重建關係
-
-        let { lastSettlement } = SettlementClone;
-        let isCreateLengthBeZero = lastSettlement['create'].length == 0,
-          isUpdateLengthBeZero = lastSettlement['create'].length == 0;
-        const RelationBuilderObservable = (EntityList: Entity[]) => {
-          // 遍歷所有的 Entity
-          return from(EntityList)
-            .pipe(
-              mergeMap((entity: Entity) => {
-                if (!theConfig || theConfig['_relationshipOptions'].length == 0) {
-                  // 如果這個 Entity 並未設定關係的話跳過
-                  return of(null)
-                }
-                // 遍歷這個 Entity 所有的 relationConfig
-                return from(theConfig['_relationshipOptions'])
-                  .pipe(
-                    map((relationshipOption) => {
-                      // 根據 relationOption 的 input
-                      // 去找尋它現在在 State 的狀況
-                      // 找到跟我有關的所有 Entities去建立關係
-
-                      let thisEntityName = camelCase(relationshipOption.thisEntityOptions.entity); // e.g. billOfMaterials
-                      let inputEntityName = camelCase(relationshipOption.inputEntityOptions.entity); // e.g. subTask
-
-                      const findRelevanceAndBuildUp = (ForeignKey: string, ForeignKeyValue: string) => {
-                        // let inputReducerState = StateClone[inputEntityName];
-                        let relevanceEntities = selectRelevanceEntity(
-                          StateClone[inputEntityName],
-                          {
-                            key: ForeignKey,
-                            value: ForeignKeyValue // string
-                          }
-                        );
-                        if (relevanceEntities.length !== 0) {
-                          for (const relevanceEntity of relevanceEntities) {
-                            entity.buildRelationship(
-                              relevanceEntity,
-                              relationshipOption
-                            )
-                          }
-                        }
-                      }
-
-                      // let ForeignKey = relationshipOption['inputEntityOptions']['displayField'],
-                      // ForeignKeyValue = entity[relationshipOption['thisEntityOptions']['displayField']];
-                      // // 目前想到有三種可能: string. string[], Relationship[]
-
-                      switch (relationshipOption.RelationType) {
-                        case "OneToOne":
-                        case "OneToMany":
-                        case "ManyToOne": {
-                          // 拿自己 displayField的值，去對方的 displayField想找關練值 ForeignKey
-
-                          // let inputReducerState = StateClone[inputEntityName];
-                          let ForeignKey = relationshipOption['inputEntityOptions']['displayField'],
-                            ForeignKeyValue = entity[relationshipOption['thisEntityOptions']['displayField']];
-                          findRelevanceAndBuildUp(ForeignKey, ForeignKeyValue);
-                          break;
-                        }
-                        case "ManyToMany": {
-                          // 拿自己 displayField[]的值，去對方的 displayField想找關練值 ForeignKey[]
-                          let defaultRelationKey = 'id';
-                          let ForeignKeyValues: any[] = entity[relationshipOption['thisEntityOptions']['displayField']];
-                          // console.log(entity, relationshipOption['thisEntityOptions']['displayField'], ForeignKeyValues)
-                          for (const ForeignKeyValue of ForeignKeyValues) {
-                            // 有兩種可能 string[] or Relationship[]
-                            switch (typeof ForeignKeyValues) {
-                              case "string": {
-                                // 是 string[]
-                                findRelevanceAndBuildUp(defaultRelationKey, ForeignKeyValue);
-                                break;
-                              }
-                              case "object": {
-                                // 是 RelationShip[]
-                                findRelevanceAndBuildUp(defaultRelationKey, ForeignKeyValue[defaultRelationKey]);
-                                break;
-                              }
-                              default: {
-                                let _logger = Logger.error(
-                                  'Store',
-                                  `buildRelationStore.RelationBuilderObservable RelationValue type is not supported!`,
-                                  { isPrint: Main.printMode !== "none" }
-                                );
-                                if (envType == 'browser' && _logger['options']['isPrint'])
-                                  console.error(_logger['_str']);
-                                break;
-                              }
-                            }
-
-                          }
-                          // let inputReducerState = StateClone[inputEntityName];
-
-                          break;
-                        }
-                      }
-                      // switch (typeof ForeignKeyValue) {
-                      //   case "string": {
-                      //     // OneToOne, OneToMany, ManyToOne
-                      //     // 通常直接記得關聯方的 foreign key
-                      //     findRelevanceAndBuildUp(ForeignKey, ForeignKeyValue);
-                      //     break;
-                      //   }
-                      //   case "object": {
-                      //     if (Array.isArray(ForeignKeyValue)) {
-                      //       // ManyToMany
-                      //       for (const RelationValue of ForeignKeyValue) {
-                      //         let defaultRelationKey = 'id';
-                      //         switch (typeof RelationValue) {
-                      //           case "string": {
-                      //             // 這代表 Neo4J的線 Relation的部分將關聯對方的 id匯集起來記在這裡
-                      //             findRelevanceAndBuildUp(defaultRelationKey, RelationValue);
-                      //             break;
-                      //           }
-                      //           case "object": {
-                      //             // 這代表 Neo4J的線 Relation的部分將關聯對方的 id加上 Relation的其他 Property匯集起來記在這裡
-                      //             console.log(`RelationValue[defaultRelationKey]: ${RelationValue[defaultRelationKey]}`)
-                      //             findRelevanceAndBuildUp(defaultRelationKey, RelationValue[defaultRelationKey]);
-                      //             break;
-                      //           }
-                      //           default: {
-                      //             let _logger = Logger.error(
-                      //               'Store',
-                      //               `buildRelationStore.RelationBuilderObservable RelationValue type is not supported!`,
-                      //               { isPrint: Main.printMode !== "none" }
-                      //             );
-                      //             if (envType == 'browser' && _logger['options']['isPrint'])
-                      //               console.error(_logger['_str']);
-                      //             break;
-                      //           }
-                      //         }
-                      //       }
-
-                      //     }
-                      //     break;
-                      //   }
-                      //   default: {
-                      //     let _logger = Logger.error(
-                      //       'Store',
-                      //       `buildRelationStore.RelationBuilderObservable value type is not supported!`,
-                      //       { isPrint: Main.printMode !== "none" }
-                      //     );
-                      //     if (envType == 'browser' && _logger['options']['isPrint'])
-                      //       console.error(_logger['_str']);
-                      //     break;
-                      //   }
-
-                      // }
-
-
-                    })
-                  )
+          LastSettlementToValues = {
+            create: Object.values(lastSettlement['create']),
+            update: Object.values(lastSettlement['update']),
+            delete: Object.values(lastSettlement['delete']),
+          };
+          if (LastSettlementToValues['create'].length !== 0) {
+            LastSettlementToEntity['create'] = theReducer.createEntities(LastSettlementToValues['create']);
+            theState = addMany(LastSettlementToEntity['create'], theState);
+          }
+          if (LastSettlementToValues['update'].length !== 0) {
+            Array.from(LastSettlementToValues['update'])
+              .map((entityData) => {
+                let theEntity: Entity = theState['entities'][entityData['id']];
+                // 斷開所有連結，稍後會重建
+                theEntity.breakAllEntityRelationships();
+                let newEntity = theReducer.createEntity(entityData);
+                LastSettlementToEntity['update'].push(newEntity);
+                theState = setOne(newEntity, theState);
+                return entityData;
               })
-            )
-        }
-        let create$ = RelationBuilderObservable(LastSettlementToEntity['create']),
-          update$ = RelationBuilderObservable(LastSettlementToEntity['update']);
-        return concat(
-          isCreateLengthBeZero ? of(null) : create$,
-          isUpdateLengthBeZero ? of(null) : update$
-        ).pipe(
-          last(),
-        )
-      }),
-      map(() => StateClone),
-      catchError(err => of(err))
-    );
+          };
+          if (LastSettlementToValues['delete'].length !== 0) {
+            Array.from(LastSettlementToValues['delete'])
+              .map((id: string) => {
+                let theEntity: Entity = theState['entities'][id];
+                // 斷開所有連結
+                theEntity.breakAllEntityRelationships();
+                // 從 state中刪除
+                theState = removeOne(id, theState);
+              })
+          }
+          StateClone[reducerName] = theState;
+          return { SettlementClone, reducerName };
+        }),
+        mergeMap(({ SettlementClone, reducerName }) => {
+          // 這個 operator 的目的是；針對 settlement 中的 create, update 的部分重建關係
+
+          let { lastSettlement } = SettlementClone;
+          let isCreateLengthBeZero = lastSettlement['create'].length == 0,
+            isUpdateLengthBeZero = lastSettlement['create'].length == 0;
+          const RelationBuilderObservable = (EntityList: Entity[]) => {
+            // 遍歷所有的 Entity
+            return from(EntityList)
+              .pipe(
+                mergeMap((entity: Entity) => {
+                  if (!theConfig || theConfig['_relationshipOptions'].length == 0) {
+                    // 如果這個 Entity 並未設定關係的話跳過
+                    return of(null)
+                  }
+                  // 遍歷這個 Entity 所有的 relationConfig
+                  return from(theConfig['_relationshipOptions'])
+                    .pipe(
+                      map((relationshipOption) => {
+                        // 根據 relationOption 的 input
+                        // 去找尋它現在在 State 的狀況
+                        // 找到跟我有關的所有 Entities去建立關係
+
+                        let thisEntityName = camelCase(relationshipOption.thisEntityOptions.entity); // e.g. billOfMaterials
+                        let inputEntityName = camelCase(relationshipOption.inputEntityOptions.entity); // e.g. subTask
+
+                        const findRelevanceAndBuildUp = (ForeignKey: string, ForeignKeyValue: string) => {
+                          // let inputReducerState = StateClone[inputEntityName];
+                          let relevanceEntities = selectRelevanceEntity(
+                            StateClone[inputEntityName],
+                            {
+                              key: ForeignKey,
+                              value: ForeignKeyValue // string
+                            }
+                          );
+                          if (relevanceEntities.length !== 0) {
+                            for (const relevanceEntity of relevanceEntities) {
+                              entity.buildRelationship(
+                                relevanceEntity,
+                                relationshipOption
+                              )
+                            }
+                          }
+                        }
+
+                        // let ForeignKey = relationshipOption['inputEntityOptions']['displayField'],
+                        // ForeignKeyValue = entity[relationshipOption['thisEntityOptions']['displayField']];
+                        // // 目前想到有三種可能: string. string[], Relationship[]
+
+                        switch (relationshipOption.RelationType) {
+                          case "OneToOne":
+                          case "OneToMany":
+                          case "ManyToOne": {
+                            // 拿自己 displayField的值，去對方的 displayField想找關練值 ForeignKey
+
+                            // let inputReducerState = StateClone[inputEntityName];
+                            let ForeignKey = relationshipOption['inputEntityOptions']['displayField'],
+                              ForeignKeyValue = entity[relationshipOption['thisEntityOptions']['displayField']];
+                            findRelevanceAndBuildUp(ForeignKey, ForeignKeyValue);
+                            break;
+                          }
+                          case "ManyToMany": {
+                            // 拿自己 displayField[]的值，去對方的 displayField想找關練值 ForeignKey[]
+                            let defaultRelationKey = 'id';
+                            let ForeignKeyValues: any[] = entity[relationshipOption['thisEntityOptions']['displayField']];
+                            // console.log(entity, relationshipOption['thisEntityOptions']['displayField'], ForeignKeyValues)
+                            for (const ForeignKeyValue of ForeignKeyValues) {
+                              // 有兩種可能 string[] or Relationship[]
+                              switch (typeof ForeignKeyValues) {
+                                case "string": {
+                                  // 是 string[]
+                                  findRelevanceAndBuildUp(defaultRelationKey, ForeignKeyValue);
+                                  break;
+                                }
+                                case "object": {
+                                  // 是 RelationShip[]
+                                  findRelevanceAndBuildUp(defaultRelationKey, ForeignKeyValue[defaultRelationKey]);
+                                  break;
+                                }
+                                default: {
+                                  let _logger = Logger.error(
+                                    'Store',
+                                    `buildRelationStore.RelationBuilderObservable RelationValue type is not supported!`,
+                                    { isPrint: Main.printMode !== "none" }
+                                  );
+                                  if (envType == 'browser' && _logger['options']['isPrint'])
+                                    console.error(_logger['_str']);
+                                  break;
+                                }
+                              }
+
+                            }
+                            // let inputReducerState = StateClone[inputEntityName];
+
+                            break;
+                          }
+                        }
+                        // switch (typeof ForeignKeyValue) {
+                        //   case "string": {
+                        //     // OneToOne, OneToMany, ManyToOne
+                        //     // 通常直接記得關聯方的 foreign key
+                        //     findRelevanceAndBuildUp(ForeignKey, ForeignKeyValue);
+                        //     break;
+                        //   }
+                        //   case "object": {
+                        //     if (Array.isArray(ForeignKeyValue)) {
+                        //       // ManyToMany
+                        //       for (const RelationValue of ForeignKeyValue) {
+                        //         let defaultRelationKey = 'id';
+                        //         switch (typeof RelationValue) {
+                        //           case "string": {
+                        //             // 這代表 Neo4J的線 Relation的部分將關聯對方的 id匯集起來記在這裡
+                        //             findRelevanceAndBuildUp(defaultRelationKey, RelationValue);
+                        //             break;
+                        //           }
+                        //           case "object": {
+                        //             // 這代表 Neo4J的線 Relation的部分將關聯對方的 id加上 Relation的其他 Property匯集起來記在這裡
+                        //             console.log(`RelationValue[defaultRelationKey]: ${RelationValue[defaultRelationKey]}`)
+                        //             findRelevanceAndBuildUp(defaultRelationKey, RelationValue[defaultRelationKey]);
+                        //             break;
+                        //           }
+                        //           default: {
+                        //             let _logger = Logger.error(
+                        //               'Store',
+                        //               `buildRelationStore.RelationBuilderObservable RelationValue type is not supported!`,
+                        //               { isPrint: Main.printMode !== "none" }
+                        //             );
+                        //             if (envType == 'browser' && _logger['options']['isPrint'])
+                        //               console.error(_logger['_str']);
+                        //             break;
+                        //           }
+                        //         }
+                        //       }
+
+                        //     }
+                        //     break;
+                        //   }
+                        //   default: {
+                        //     let _logger = Logger.error(
+                        //       'Store',
+                        //       `buildRelationStore.RelationBuilderObservable value type is not supported!`,
+                        //       { isPrint: Main.printMode !== "none" }
+                        //     );
+                        //     if (envType == 'browser' && _logger['options']['isPrint'])
+                        //       console.error(_logger['_str']);
+                        //     break;
+                        //   }
+
+                        // }
+
+
+                      })
+                    )
+                })
+              )
+          }
+          let create$ = RelationBuilderObservable(LastSettlementToEntity['create']),
+            update$ = RelationBuilderObservable(LastSettlementToEntity['update']);
+          return concat(
+            isCreateLengthBeZero ? of(null) : create$,
+            isUpdateLengthBeZero ? of(null) : update$
+          ).pipe(
+            last(),
+          )
+        }),
+        map(() => StateClone),
+        catchError(err => of(err))
+      )
+      .subscribe(state => {
+        this.withRelation$.next(state);
+      });
   }
 
 }
