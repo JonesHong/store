@@ -60,9 +60,9 @@ export class Store<initialState, Reducers> extends Broker {
   public get settlement$() {
     return this._settlement$.asObservable()
       .pipe(
-        SettlementChanged()
-        // SettlementChanged(this._settlement$)
-      );
+      // SettlementChanged()
+      // SettlementChanged(this._settlement$)
+    );
   }
   // private _settlementsLogSize = 100;
   // private _settlementsLog = [];
@@ -197,12 +197,14 @@ export class Store<initialState, Reducers> extends Broker {
       LastSettlementToValues: { create: any[]; update: any[]; delete: string[] },
       theConfig: RelationshipConfig,
       LastSettlementToEntity: { create: Entity[]; update: Entity[] } = { create: [], update: [] };
-
+    StateClone['_'] = { settlement: null };
     this.settlement$
       .pipe(
         // tap(settlement => console.log),
         filter((settlement) => !!settlement && !!StateClone && !!Relation.RelationshipConfigTable),
         map(settlement => {
+          if (!StateClone['_'] || !!StateClone['_']['settlement']) StateClone['_'] = { ...StateClone['_'], settlement: null };
+          StateClone['_']['settlement'] = settlement;
           // 這個 operator 的目的是；整理最新 settlement 的結果   
           RelationshipConfigTable = Relation.RelationshipConfigTable;
           SettlementClone = _.cloneDeep(settlement);
