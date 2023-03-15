@@ -87,12 +87,16 @@ class _Logger {
       if (isOptionsProp('execTime')) {
         _str += chalk.italic.yellow(` +${options['execTime']}ms`);
       }
-      if (isOptionsProp('payload')) {
-        _str += `\n${JSON.stringify(options['payload'])}`;
-      }
+      // if (isOptionsProp('payload')) {
+      //   _str += `\n${JSON.stringify(options['payload'])}`;
+      // }
 
       if (!!options['isPrint'] && envType == 'nodejs') {
-        log(_str);
+        if (isOptionsProp('payload')) {
+          log(_str, " payload:\n", options['payload']);
+        } else {
+          log(_str);
+        }
       }
     }
 

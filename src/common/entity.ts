@@ -84,6 +84,7 @@ export abstract class Entity {
       this._dataKeySet.add(key);
     });
     if (!!!this.id) this.id = v4Generator();
+    return this;
   };
 
   toObject = (): object => {

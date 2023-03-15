@@ -41,61 +41,47 @@ export function createFeatureSelector<T>(featureName: string): Observable<T> {
   return stream$;
 }
 
-Logger.log("createRelationSelector", "8320-83-208")
+// console.warn("createRelationSelector", "saojasioasj")
 export function createRelationSelector<T>(featureName: string): Observable<T> {
+
+  // console.warn("featureName", featureName)
   let stream$: Observable<T> = new Observable((observer) => {
     let subscription: Subscription = new Subscription();
-    Logger.log("createRelationSelector", this.Store['withRelation'])
-    try {
-
-      // if (!this.Store['withRelation'][featureName]) {
+    // console.warn("this.Store['withRelation'] ", !!this.Store['withRelation'][featureName])
+    // if (!this.Store['withRelation'][featureName]) {
 
 
-      //   let _logger = Logger.error(
-      //     'createRelationSelector',
-      //     `Can't find the name ${featureName} of state in Store.withRelation.`,
-      //     { isPrint: Main.printMode !== "none" }
-      //   );
-      //   if (envType == 'browser' && _logger['options']['isPrint'])
-      //     console.error(_logger['_str']);
+    //   let _logger = Logger.error(
+    //     'createRelationSelector',
+    //     `Can't find the name ${featureName} of state in Store.withRelation.`,
+    //     { isPrint: Main.printMode !== "none" }
+    //   );
+    //   if (envType == 'browser' && _logger['options']['isPrint'])
+    //     console.error(_logger['_str']);
 
-      // }  
-      if (!this.Store['_reducers'][featureName]) {
-        let _logger = Logger.error(
-          'createFeatureSelector',
-          `Can't find the name ${featureName} of reducer in Store.`,
-          { isPrint: Main.printMode !== "none" }
-        );
-        if (envType == 'browser' && _logger['options']['isPrint'])
-          console.error(_logger['_str']);
+    // }  
+    if (!this.Store['_reducers'][featureName]) {
+      let _logger = Logger.error(
+        'createFeatureSelector',
+        `Can't find the name ${featureName} of reducer in Store.`,
+        { isPrint: Main.printMode !== "none" }
+      );
+      if (envType == 'browser' && _logger['options']['isPrint'])
+        console.error(_logger['_str']);
 
-      } else {
-        // 第一次
-        observer.next(this.Store['withRelation'][featureName])
-
-        Logger.log("createRelationSelector", this.Store['withRelation$']);
-        subscription.add(
-          // this.Store['settlement$']
-          // zip(this.Store['settlement$'], this.Store['withRelation$'])
-          this.Store['withRelation$'].asObservable()
-            .pipe(
-              tap(res => Logger.log("createRelationSelector", '920380239', { payload: res })),
-              filter(withRelation => withRelation['_']['settlement']['reducerName'] == featureName),
-              // filter(settlement => !!settlement && settlement['reducerName'] == featureName),
-              // mergeMap(() => this.Store['withRelation$'])
-              // filter(([settlement, withRelation]) => !!settlement && !!this.Store['withRelation'] && settlement['reducerName'] == featureName)
-            )
-            // .subscribe(([settlement, withRelation]) => {
-            .subscribe((withRelation) => {
-              // 後面每次更新
-              // let newRes = _.cloneDeep(withRelation[featureName]);
-              observer.next(withRelation[featureName]);
-
-            })
-        )
-      }
-    } catch (error) {
-      Logger.error("createRelationSelector", error);
+    } else {
+      // console.error(2222222)
+      // 第一次
+      observer.next(this.Store['withRelation'][featureName])
+      let withRelationSub = this.Store['withRelation$']
+        .pipe(
+        // filter(withRelation => !!withRelation && !!withRelation['_']['settlement'] && withRelation['_']['settlement']['reducerName'] == featureName),
+      )
+        // .subscribe(([settlement, withRelation]) => {
+        .subscribe(withRelation => {
+          observer.next(withRelation[featureName]);
+        })
+      subscription.add(withRelationSub)
     }
     return {
       unsubscribe: () => {

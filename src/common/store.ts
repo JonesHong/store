@@ -13,7 +13,7 @@ import { catchError, filter, last, map, mergeMap, tap } from "rxjs/operators";
 import { SettlementChanged } from "./pipes/_some.pipe";
 import { JDLObject, RelationshipConfig, RelationshipConfigTable } from "./interface/relation.interface";
 import { Entity } from "./entity";
-import { addMany, removeOne, setOne } from "./adapter";
+import { addMany, addOne, removeOne, setOne, upsertOne } from "./adapter";
 import { camelCase, pascalCase } from "change-case";
 import { Relation } from "./relation";
 import { Logger } from "./logger";
@@ -60,9 +60,9 @@ export class Store<initialState, Reducers> extends Broker {
   public get settlement$() {
     return this._settlement$.asObservable()
       .pipe(
-      // SettlementChanged()
-      // SettlementChanged(this._settlement$)
-    );
+        SettlementChanged()
+        // SettlementChanged(this._settlement$)
+      );
   }
   // private _settlementsLogSize = 100;
   // private _settlementsLog = [];
@@ -91,6 +91,8 @@ export class Store<initialState, Reducers> extends Broker {
 
     if (!this.withRelation) {
       let stateClone = _.cloneDeep(this.state);
+
+      if (!stateClone['_']) stateClone['_'] = {};
       this._withRelation$.next(stateClone)
       this.buildRelationStore()
     }
@@ -197,19 +199,19 @@ export class Store<initialState, Reducers> extends Broker {
       LastSettlementToValues: { create: any[]; update: any[]; delete: string[] },
       theConfig: RelationshipConfig,
       LastSettlementToEntity: { create: Entity[]; update: Entity[] } = { create: [], update: [] };
-    StateClone['_'] = { settlement: null };
     this.settlement$
       .pipe(
         // tap(settlement => console.log),
         filter((settlement) => !!settlement && !!StateClone && !!Relation.RelationshipConfigTable),
         map(settlement => {
-          if (!StateClone['_'] || !!StateClone['_']['settlement']) StateClone['_'] = { ...StateClone['_'], settlement: null };
-          StateClone['_']['settlement'] = settlement;
           // 這個 operator 的目的是；整理最新 settlement 的結果   
           RelationshipConfigTable = Relation.RelationshipConfigTable;
           SettlementClone = _.cloneDeep(settlement);
           let { lastSettlement } = SettlementClone;
           let { reducerName } = SettlementClone;
+
+          StateClone['_']['settlement'] = SettlementClone;
+
           theReducer = this.reducers[reducerName]; // e.g. group
           theState = StateClone[reducerName];
           theConfig = RelationshipConfigTable[pascalCase(reducerName)]; // e.g. Group
@@ -228,10 +230,11 @@ export class Store<initialState, Reducers> extends Broker {
               .map((entityData) => {
                 let theEntity: Entity = theState['entities'][entityData['id']];
                 // 斷開所有連結，稍後會重建
-                theEntity.breakAllEntityRelationships();
-                let newEntity = theReducer.createEntity(entityData);
+                // theEntity.breakAllEntityRelationships();
+                // let newEntity = theReducer.createEntity(entityData);
+                let newEntity = theEntity.upsertData(entityData);
                 LastSettlementToEntity['update'].push(newEntity);
-                theState = setOne(newEntity, theState);
+                // theState = setOne(newEntity, theState);
                 return entityData;
               })
           };
@@ -264,6 +267,8 @@ export class Store<initialState, Reducers> extends Broker {
                     return of(null)
                   }
                   // 遍歷這個 Entity 所有的 relationConfig
+
+                  entity.breakAllEntityRelationships();
                   return from(theConfig['_relationshipOptions'])
                     .pipe(
                       map((relationshipOption) => {
