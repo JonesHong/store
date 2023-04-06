@@ -50,6 +50,9 @@
       "src/types"
     ],
     "paths": {
+      "*": [
+        "node_modules/*"
+      ],
       "@felangel/bloc": [
         "src/libs/@felangel/bloc/bloc.ts"
       ]

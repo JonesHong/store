@@ -43,7 +43,7 @@ export class Store<initialState, Reducers> extends Broker {
   public get withRelation() {
     return this._withRelation$.value;
   }
-  public get withRelation$() {
+  public get withRelation$(): BehaviorSubject<initialState> {
     return this._withRelation$
   }
   public get reducers() {
@@ -210,7 +210,7 @@ export class Store<initialState, Reducers> extends Broker {
           let { lastSettlement } = SettlementClone;
           let { reducerName } = SettlementClone;
 
-          StateClone['_']['settlement'] = SettlementClone;
+          // StateClone['_']['settlement'] = SettlementClone;
 
           theReducer = this.reducers[reducerName]; // e.g. group
           theState = StateClone[reducerName];

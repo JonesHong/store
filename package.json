@@ -1,6 +1,6 @@
 {
   "name": "mycena-store",
-  "version": "1.2.8-beta.48",
+  "version": "1.2.11",
   "description": "For mirgation",
   "author": {
     "name": "JonesHong",
@@ -30,6 +30,8 @@
     "note:publish": "npm run build:main && npm publish --access public",
     "note:unpublish": "npm unpublish <package_name>@<package_version>",
     "note:deprecate": "npm deprecate <package>@<version> '<message>'",
+    "note:unpublish-example": "npm unpublish mycena-store@1.2.8-beta.78",
+    "note:deprecate-example": "npm deprecate mycena-store@1.2.8-beta.57 'this package has been deprecated'",
     "fix": "run-s fix:*",
     "fix:prettier": "prettier \"src/**/*.ts\" --write",
     "fix:lint": "eslint src --ext .ts --fix",
@@ -72,7 +74,7 @@
     "nanoid": "^3.3.4",
     "path": "^0.12.7",
     "reflect-metadata": "^0.1.13",
-    "rxjs": "~7.5.6",
+    "rxjs": "^7.8.0",
     "strip-ansi": "^6.0.1",
     "tslib": "^2.4.0",
     "ttypescript": "^1.5.13",
@@ -101,9 +103,9 @@
     "open-cli": "^7.0.1",
     "prettier": "^2.1.1",
     "standard-version": "^9.0.0",
-    "ts-node": "~10.8.0",
+    "ts-node": "^10.8.0",
     "typedoc": "^0.23.14",
-    "typescript": "~4.7.2"
+    "typescript": "^4.7.2"
   },
   "files": [
     "build/main",
