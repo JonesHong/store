@@ -95,7 +95,7 @@ export const selectRelevanceEntity = (
   state,
   parameter: { key: string; value: any }
 ) => {
-  let entities: Entity[] = Object.values(state['entities']);
+  let entities: Entity[] = Object.keys(state['entities']).map((key) => state['entities'][key]);
   let payload = [];
   entities.map((entity) => {
     if (!!!entity[parameter['key']]) {

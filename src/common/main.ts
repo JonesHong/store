@@ -6,7 +6,7 @@ import { Store } from './store';
 import { Effect } from './effect';
 import { RelationshipFromJDL } from './interface/relation.interface';
 import { Relation } from './relation';
-import * as _ from 'lodash';
+import _ from 'lodash';
 // import { createClient, RedisClientOptions, RedisClientType, RedisDefaultModules, RedisModules, RedisScripts } from 'redis';
 // import { CacheService, RedisOptions } from "./cache";
 import { Container } from 'inversify';
@@ -298,3 +298,6 @@ export class CQRS<initialState, Reducers> {
   createRelationSelector = createRelationSelector;
 }
 
+
+
+// console.error("Hello world!!! 2034/04/12");

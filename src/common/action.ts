@@ -1,4 +1,4 @@
-import * as _ from "lodash"
+import _ from "lodash"
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { envType } from "./env_checker";
@@ -312,9 +312,9 @@ export const transferDefaultToEntity = (reducerName: string) => {
     }
     let actionMap = _.cloneDeep(CommonActionMap)
     // await Promise.all(
-    Object.entries(actionMap).map(entry => {
-        let _key = entry[0],
-            _val = entry[1];
+    Object.entries(actionMap).map((actionEntry) => {
+        let _key = actionEntry[0],
+            _val = actionEntry[1];
         actionMap[_key] = replaceDefaultToEntity(_val, reducerName);
     })
     // );

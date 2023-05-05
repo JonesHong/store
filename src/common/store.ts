@@ -1,5 +1,5 @@
-import * as _ from "lodash";
-import { asapScheduler, BehaviorSubject, concat, from, Observable, of, pipe, Subscription } from "rxjs";
+import _ from "lodash";
+import { asapScheduler, BehaviorSubject, concat, EmptyError, forkJoin, from, Observable, of, pipe, Subscription, throwError } from "rxjs";
 // import { addToSubscription } from "./store.interface";
 import { Broker } from "./broker";
 import { Action, AddMany, RemoveMany, SetMany } from "./action";
@@ -9,7 +9,7 @@ import { CQRS, Main } from "./main";
 import { EntityState } from "./interface/adapter.interface";
 import { Settlement } from "./interface/store.interface";
 import { v4 as uuidv4 } from "uuid"
-import { catchError, filter, last, map, mergeMap, tap } from "rxjs/operators";
+import { catchError, defaultIfEmpty, delay, filter, last, map, mergeMap, tap, toArray } from "rxjs/operators";
 import { SettlementChanged } from "./pipes/_some.pipe";
 import { JDLObject, RelationshipConfig, RelationshipConfigTable } from "./interface/relation.interface";
 import { Entity } from "./entity";
@@ -43,8 +43,8 @@ export class Store<initialState, Reducers> extends Broker {
   public get withRelation() {
     return this._withRelation$.value;
   }
-  public get withRelation$(): BehaviorSubject<initialState> {
-    return this._withRelation$
+  public get withRelation$() {
+    return this._withRelation$.asObservable()
   }
   public get reducers() {
     return this._reducers
@@ -60,9 +60,9 @@ export class Store<initialState, Reducers> extends Broker {
   public get settlement$() {
     return this._settlement$.asObservable()
       .pipe(
-        SettlementChanged()
-        // SettlementChanged(this._settlement$)
-      );
+      // SettlementChanged()
+      // SettlementChanged(this._settlement$)
+    );
   }
   // private _settlementsLogSize = 100;
   // private _settlementsLog = [];
@@ -217,6 +217,9 @@ export class Store<initialState, Reducers> extends Broker {
           theConfig = RelationshipConfigTable[pascalCase(reducerName)]; // e.g. Group
 
           LastSettlementToValues = {
+            // create: Object.keys(lastSettlement['create']).map((key) => lastSettlement['create'][key]),
+            // update: Object.keys(lastSettlement['update']).map((key) => lastSettlement['update'][key]),
+            // delete: Object.keys(lastSettlement['delete']).map((key) => lastSettlement['delete'][key]),
             create: Object.values(lastSettlement['create']),
             update: Object.values(lastSettlement['update']),
             delete: Object.values(lastSettlement['delete']),
@@ -227,7 +230,7 @@ export class Store<initialState, Reducers> extends Broker {
           }
           if (LastSettlementToValues['update'].length !== 0) {
             Array.from(LastSettlementToValues['update'])
-              .map((entityData) => {
+              .forEach((entityData) => {
                 let theEntity: Entity = theState['entities'][entityData['id']];
                 // 斷開所有連結，稍後會重建
                 // theEntity.breakAllEntityRelationships();
@@ -240,10 +243,10 @@ export class Store<initialState, Reducers> extends Broker {
           };
           if (LastSettlementToValues['delete'].length !== 0) {
             Array.from(LastSettlementToValues['delete'])
-              .map((id: string) => {
+              .forEach((id: string) => {
                 let theEntity: Entity = theState['entities'][id];
                 // 斷開所有連結
-                theEntity.breakAllEntityRelationships();
+                theEntity.killItSelf();
                 // 從 state中刪除
                 theState = removeOne(id, theState);
               })
@@ -251,6 +254,7 @@ export class Store<initialState, Reducers> extends Broker {
           StateClone[reducerName] = theState;
           return { SettlementClone, reducerName };
         }),
+        // delay(50),
         mergeMap(({ SettlementClone, reducerName }) => {
           // 這個 operator 的目的是；針對 settlement 中的 create, update 的部分重建關係
 
@@ -268,7 +272,7 @@ export class Store<initialState, Reducers> extends Broker {
                   }
                   // 遍歷這個 Entity 所有的 relationConfig
 
-                  entity.breakAllEntityRelationships();
+                  // entity = entity.breakAllEntityRelationships();
                   return from(theConfig['_relationshipOptions'])
                     .pipe(
                       map((relationshipOption) => {
@@ -415,15 +419,34 @@ export class Store<initialState, Reducers> extends Broker {
             isCreateLengthBeZero ? of(null) : create$,
             isUpdateLengthBeZero ? of(null) : update$
           ).pipe(
-            last(),
+            // last(),
+            toArray(),
           )
         }),
         map(() => StateClone),
-        catchError(err => of(err))
+        catchError(error => {
+          if (error instanceof EmptyError) {
+            // 执行一些处理
+            console.log('Settlement$ 已经空了，這不應該發生。');
+            return of(StateClone);
+          } else {
+            console.error(error);
+            return throwError(() => new Error('test'));
+          }
+        }),
       )
-      .subscribe(state => {
-        this.withRelation$.next(state);
-      });
+      .subscribe(
+        {
+          next: (val) => {
+            // console.log('Observable next')
+            this._withRelation$.next(val);
+          },
+          error: (err) => {
+
+          },
+          complete: () => console.log('Settlement$ 完成了，這不應該發生，RelationStore會壞掉')
+        }
+      );
   }
 
 }
@@ -441,6 +464,10 @@ export const settlementToObject = () => {
         _create = Object.values(settlement.lastSettlement['create']),
         _update = Object.values(settlement.lastSettlement['update']),
         _delete = Object.values(settlement.lastSettlement['delete']);
+
+      // _create = Object.keys(settlement.lastSettlement['create']).map((key) => settlement.lastSettlement['create'][key]),
+      // _update = Object.keys(settlement.lastSettlement['update']).map((key) => settlement.lastSettlement['update'][key]),
+      // _delete = Object.keys(settlement.lastSettlement['delete']).map((key) => settlement.lastSettlement['delete'][key]);
       if (_create.length !== 0) {
         _payload.push(
           new AddMany(

@@ -72,6 +72,7 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
     this._servicesMap[service.name] = service;
   }
   private _actionTypeList: string[] = [];
+  private _defaultInitialState: state;
   private _initialState = null;
   /**
    *
@@ -83,12 +84,19 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
    */
   constructor(initialState, actionMap: object) {
     super(initialState);
+    this._defaultInitialState = _.cloneDeep(initialState);
     this._initialState = _.cloneDeep(initialState);
     this._actionTypeList = [
       ...this._actionTypeList,
       ...transferActionMapToActionList(actionMap),
     ];
   }
+  // reset(){
+  //   // let _action =
+  //   // this.dispatch()
+  //   // this.removeAll();
+  //   this.defaultMapper.actionMap.RemoveAll
+  // }
   initialHandler = (mode: 'test' | 'prod' = 'prod') => {
     this.handleEntityMethods();
     if (mode == 'prod') {
@@ -147,6 +155,9 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
             let createValues = Object.values(settlement['lastSettlement']['create']),
               updateValues = Object.values(settlement['lastSettlement']['update']),
               deleteValues = Object.values(settlement['lastSettlement']['delete']);
+            // let createValues = Object.keys(settlement['lastSettlement']['create']).map((key) => settlement['lastSettlement']['create'][key]),
+            //   updateValues = Object.keys(settlement['lastSettlement']['update']).map((key) => settlement['lastSettlement']['update'][key]),
+            //   deleteValues = Object.keys(settlement['lastSettlement']['delete']).map((key) => settlement['lastSettlement']['delete'][key]);
             // 按照後端 settlement 完的結果更新前端的 state
             createValues.length !== 0 ? stateClone = addMany(createValues, stateClone) : null;
             updateValues.length !== 0 ? stateClone = upsertMany(updateValues, stateClone) : null;

@@ -122,4 +122,8 @@ export interface JDLObject {
 
 export type RelationBuilderMethod = ({ thisEntity, inputEntity }: { thisEntity: Entity, inputEntity?: Entity }, options: InputRelationshipOption, counts?: number) => void;
 
+export type RelationBreakerMethod = ({ thisEntity, inputEntity }: { thisEntity: Entity, inputEntity?: Entity }, options: InputRelationshipOption, setting?: RelationBreakerSetting) => Entity;
 
+export interface RelationBreakerSetting {
+    isSelfDestruction: boolean;
+}

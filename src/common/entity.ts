@@ -1,9 +1,9 @@
 import * as _ from 'lodash';
 import { envType } from './env_checker';
-import { InputRelationshipOption } from './interface/relation.interface';
+import { InputRelationshipOption, RelationBreakerSetting } from './interface/relation.interface';
 import { Logger } from './logger';
 import { Reducer } from './reducer';
-import { Relation } from "./relation"
+import { DefaultRelationBreakerSetting, Relation } from "./relation"
 import { customAlphabet } from 'nanoid/non-secure'
 import { v4Generator } from './functions/Generator';
 
@@ -52,13 +52,25 @@ export abstract class Entity {
   }
 
   breakInputEntityRelationships(entity: Entity, options: InputRelationshipOption) {
-    Relation.breakInputEntityRelationships({ thisEntity: this, inputEntity: entity }, options);
+    return Relation.breakInputEntityRelationships({ thisEntity: this, inputEntity: entity }, options);
   }
   breakEntityRelationshipByOptions(options: InputRelationshipOption) {
-    Relation.breakEntityRelationshipByOptions({ thisEntity: this }, options);
+    return Relation.breakEntityRelationshipByOptions({ thisEntity: this }, options);
   }
   breakAllEntityRelationships() {
-    Relation.breakAllEntityRelationships(this);
+    return Relation.breakAllEntityRelationships(this);
+  }
+  killItSelf() {
+    this.breakAllEntityRelationships();
+    Array.from(this._dataKeySet).map((key) => {
+      this[key] = null;
+      delete this[key];
+    });
+
+    Array.from(this._relationshipKeyMap.keys()).map((key) => {
+      this[key] = null;
+      delete this[key];
+    })
   }
 
   constructor(property) {
@@ -76,10 +88,10 @@ export abstract class Entity {
   }
 
   upsertData = (data: {}) => {
-    let entities: [string, any][] = Object.entries(data);
-    entities.map((entity) => {
-      let key = entity[0],
-        value = entity[1];
+    let entityEntries: [string, any][] = Object.entries(data);
+    entityEntries.map((entityEntry) => {
+      let key = entityEntry[0],
+        value = entityEntry[1];
       this[key] = value;
       this._dataKeySet.add(key);
     });
