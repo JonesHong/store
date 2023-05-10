@@ -60,12 +60,13 @@ export abstract class Entity {
   breakAllEntityRelationships() {
     return Relation.breakAllEntityRelationships(this);
   }
-  killItSelf() {
+  killItSelf(isTerminated: boolean = true) {
     this.breakAllEntityRelationships();
-    Array.from(this._dataKeySet).map((key) => {
-      this[key] = null;
-      delete this[key];
-    });
+    if (!!isTerminated)
+      Array.from(this._dataKeySet).map((key) => {
+        this[key] = null;
+        delete this[key];
+      });
 
     Array.from(this._relationshipKeyMap.keys()).map((key) => {
       this[key] = null;

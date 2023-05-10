@@ -235,6 +235,9 @@ export class Store<initialState, Reducers> extends Broker {
                 // 斷開所有連結，稍後會重建
                 // theEntity.breakAllEntityRelationships();
                 // let newEntity = theReducer.createEntity(entityData);
+
+                // 斷開所有連結
+                theEntity.killItSelf(false);
                 let newEntity = theEntity.upsertData(entityData);
                 LastSettlementToEntity['update'].push(newEntity);
                 // theState = setOne(newEntity, theState);
