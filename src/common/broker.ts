@@ -1,4 +1,4 @@
-import { asapScheduler, BehaviorSubject, Subscription } from 'rxjs';
+import { asapScheduler, BehaviorSubject, filter, Subscription } from 'rxjs';
 import { Action } from './action';
 import { v4 as uuidv4 } from 'uuid';
 import { Logger } from './logger';
@@ -35,29 +35,28 @@ export abstract class Broker {
   }
   private _brokerInitial() {
     this.topicMap.set('broadcast', new BehaviorSubject(null));
-    this._isReadyToDispatchSubscribe = this.isReadyToDispatch$.subscribe(
-      (isReady) => {
-        let unsubscribeMethod = () => {
-          // unsubscribe after 0.1s
-          asapScheduler.schedule(() => {
-            this._isReadyToDispatchSubscribe.unsubscribe();
-          }, 100);
-        };
-        if (!!isReady) {
+    this._isReadyToDispatchSubscribe = this.isReadyToDispatch$
+      .pipe(
+        filter(isReady => !!isReady)
+      )
+      .subscribe(
+        (isReady) => {
           if (this.eventCache.length == 0) {
           }
-          asapScheduler.schedule(() => {
+          else {
+
             this.eventCache.map((event, index) => {
               this.dispatch(event);
               if (index + 1 === this._eventCache.length) {
                 this._eventCache = [];
-                unsubscribeMethod();
               }
             });
-          }, 10);
+          }
+          // asapScheduler.schedule(() => {
+          // }, 10);
         }
-      }
-    );
+
+      );
 
     // let broadcast = this.getBroadcast();
     // broadcast.subscribe((event) => {

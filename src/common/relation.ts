@@ -586,26 +586,46 @@ class _Relation {
     let relatedKey = inputEntity[displayField];
 
     relationName = `_${relationName}`;
-    // console.warn("breakInputEntityRelationships", thisEntity._name, relationName, thisEntity[relationName])
-    // console.log(displayField, relatedKey, thisEntity[relationName][relatedKey])
+
     if (!!!thisEntity[relationName]) return thisEntity;
+    switch (options['RelationType']) {
+      case "ManyToMany":
+        relationName = `_${options.thisEntityOptions['relationName']}`;
+        thisEntity[relationName] = null;
+        delete thisEntity[relationName];
+        break;
+      case "OneToOne":
+      case "ManyToOne":
+        // 自己和對象的關係是一的時候
+        thisEntity[relationName] = null;
+        delete thisEntity[relationName];
+        break;
+      case "OneToMany":
+        // 自己和對象的關係是多的時候
+        thisEntity[relationName][relatedKey] = null;
+        delete thisEntity[relationName][relatedKey];
+        break;
 
-    if (!!thisEntity[relationName][displayField]) {
-      // 自己和對象的關係是一的時候
-      thisEntity[relationName] = null;
-      delete thisEntity[relationName];
-      // console.warn(3333, thisEntity._name, thisEntity)
+      default:
+        break;
     }
-    else if (!!thisEntity[relationName][relatedKey]) {
-      // 自己和對象的關係是多的時候
-      thisEntity[relationName][relatedKey] = null;
-      delete thisEntity[relationName][relatedKey];
 
-      // console.warn(4444, thisEntity._name, thisEntity, thisEntity[relationName])
-    }
-    else {
-      console.error("不可能!!，一定是哪裡出錯了")
-    }
+    // if (!!thisEntity[relationName][displayField]) {
+    //   // 自己和對象的關係是一的時候
+    //   thisEntity[relationName] = null;
+    //   delete thisEntity[relationName];
+    //   // console.warn(3333, thisEntity._name, thisEntity)
+    // }
+    // else if (!!thisEntity[relationName][relatedKey]) {
+    //   // 自己和對象的關係是多的時候
+    //   thisEntity[relationName][relatedKey] = null;
+    //   delete thisEntity[relationName][relatedKey];
+
+    //   // console.warn(4444, thisEntity._name, thisEntity, thisEntity[relationName])
+    // }
+    // else {
+    //   console.error("不可能!!，一定是哪裡出錯了")
+    // }
 
     if (!!!thisEntity[relationName] || Object.keys(thisEntity[relationName]).length == 0) {
       // asapScheduler.schedule(() => {

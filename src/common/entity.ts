@@ -88,7 +88,7 @@ export abstract class Entity {
     this._reducer = reducer;
   }
 
-  upsertData = (data: {}) => {
+  upsertData(data: {}) {
     let entityEntries: [string, any][] = Object.entries(data);
     entityEntries.map((entityEntry) => {
       let key = entityEntry[0],
@@ -100,7 +100,7 @@ export abstract class Entity {
     return this;
   };
 
-  toObject = (): object => {
+  toObject(): object {
     let payload = {};
 
     Array.from(this._dataKeySet).map((key) => {

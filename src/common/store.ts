@@ -224,6 +224,7 @@ export class Store<initialState, Reducers> extends Broker {
             update: Object.values(lastSettlement['update']),
             delete: Object.values(lastSettlement['delete']),
           };
+          LastSettlementToEntity = { create: [], update: [] }; // new! 需要歸零否則會一直累進 -20230715
           if (LastSettlementToValues['create'].length !== 0) {
             LastSettlementToEntity['create'] = theReducer.createEntities(LastSettlementToValues['create']);
             theState = addMany(LastSettlementToEntity['create'], theState);
@@ -325,7 +326,7 @@ export class Store<initialState, Reducers> extends Broker {
                             // 拿自己 displayField[]的值，去對方的 displayField想找關練值 ForeignKey[]
                             let defaultRelationKey = 'id';
                             let ForeignKeyValues: any[] = entity[relationshipOption['thisEntityOptions']['displayField']];
-                            // console.log(entity, relationshipOption['thisEntityOptions']['displayField'], ForeignKeyValues)
+                            if (!!!ForeignKeyValues || ForeignKeyValues.length == 0) break;  // new! 考慮到 non-sql，忽略空值不綁關係 -20230715
                             for (const ForeignKeyValue of ForeignKeyValues) {
                               // 有兩種可能 string[] or Relationship[]
                               switch (typeof ForeignKeyValues) {
@@ -357,60 +358,6 @@ export class Store<initialState, Reducers> extends Broker {
                             break;
                           }
                         }
-                        // switch (typeof ForeignKeyValue) {
-                        //   case "string": {
-                        //     // OneToOne, OneToMany, ManyToOne
-                        //     // 通常直接記得關聯方的 foreign key
-                        //     findRelevanceAndBuildUp(ForeignKey, ForeignKeyValue);
-                        //     break;
-                        //   }
-                        //   case "object": {
-                        //     if (Array.isArray(ForeignKeyValue)) {
-                        //       // ManyToMany
-                        //       for (const RelationValue of ForeignKeyValue) {
-                        //         let defaultRelationKey = 'id';
-                        //         switch (typeof RelationValue) {
-                        //           case "string": {
-                        //             // 這代表 Neo4J的線 Relation的部分將關聯對方的 id匯集起來記在這裡
-                        //             findRelevanceAndBuildUp(defaultRelationKey, RelationValue);
-                        //             break;
-                        //           }
-                        //           case "object": {
-                        //             // 這代表 Neo4J的線 Relation的部分將關聯對方的 id加上 Relation的其他 Property匯集起來記在這裡
-                        //             console.log(`RelationValue[defaultRelationKey]: ${RelationValue[defaultRelationKey]}`)
-                        //             findRelevanceAndBuildUp(defaultRelationKey, RelationValue[defaultRelationKey]);
-                        //             break;
-                        //           }
-                        //           default: {
-                        //             let _logger = Logger.error(
-                        //               'Store',
-                        //               `buildRelationStore.RelationBuilderObservable RelationValue type is not supported!`,
-                        //               { isPrint: Main.printMode !== "none" }
-                        //             );
-                        //             if (envType == 'browser' && _logger['options']['isPrint'])
-                        //               console.error(_logger['_str']);
-                        //             break;
-                        //           }
-                        //         }
-                        //       }
-
-                        //     }
-                        //     break;
-                        //   }
-                        //   default: {
-                        //     let _logger = Logger.error(
-                        //       'Store',
-                        //       `buildRelationStore.RelationBuilderObservable value type is not supported!`,
-                        //       { isPrint: Main.printMode !== "none" }
-                        //     );
-                        //     if (envType == 'browser' && _logger['options']['isPrint'])
-                        //       console.error(_logger['_str']);
-                        //     break;
-                        //   }
-
-                        // }
-
-
                       })
                     )
                 })
