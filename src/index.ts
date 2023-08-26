@@ -5,7 +5,7 @@ export * from './common/interface/adapter.interface';
 export * from './common/interface/store.interface';
 
 export * from './common/pipes/_some.pipe';
-export * from './common/pipes/pagination.pipe';
+export * from './common/pipes/error.pipe';
 export * from './common/pipes/pagination.pipe';
 
 export * from './common/action';

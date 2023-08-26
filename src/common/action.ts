@@ -48,11 +48,11 @@ export abstract class Action {
     private _nowTime() {
         return DateTime.fromJSDate(new Date).valueOf();
     }
-    addTraversal(node: string) {
-        let _now = DateTime.fromJSDate(new Date);
-        this._traversal.set(_now.valueOf(), node);
-        this._updateDateTime = this._nowTime();
-    }
+    // addTraversal(node: string) {
+    //     let _now = DateTime.fromJSDate(new Date);
+    //     this._traversal.set(_now.valueOf(), node);
+    //     this._updateDateTime = this._nowTime();
+    // }
     toObject = () => {
         let _payload = {};
         let classEntries: [string, any][] = Object.entries(this);
@@ -164,24 +164,24 @@ export class PacketLossObserved extends Action {
 //     UpsertOne: '[Default] Upsert One',
 //     UpsertMany: '[Default] Upsert Many',
 // }
-export const CommonActionMap = {
-    Initial: '[Default] Initial',
-    AddOne: '[Default] Add One',
-    AddMany: '[Default] Add Many',
-    SetOne: '[Default] Set One',
-    SetMany: '[Default] Set Many',
-    SetAll: '[Default] Set All',
-    RemoveOne: '[Default] Remove One',
-    RemoveMany: '[Default] Remove Many',
-    RemoveAll: '[Default] Remove All',
-    UpdateOne: '[Default] Update One',
-    UpdateMany: '[Default] Update Many',
-    UpsertOne: '[Default] Upsert One',
-    UpsertMany: '[Default] Upsert Many',
-    CompareSettlement: "[Default] Compare Settlement",
-    // CacheOne: '[Default] Cache One',
-    // CacheMany: '[Default] Cache Many',
-    // CacheAll: '[Default] Cache All',
+export enum CommonActionMap {
+    Initial = '[Default] Initial',
+    AddOne = '[Default] Add One',
+    AddMany = '[Default] Add Many',
+    SetOne = '[Default] Set One',
+    SetMany = '[Default] Set Many',
+    SetAll = '[Default] Set All',
+    RemoveOne = '[Default] Remove One',
+    RemoveMany = '[Default] Remove Many',
+    RemoveAll = '[Default] Remove All',
+    UpdateOne = '[Default] Update One',
+    UpdateMany = '[Default] Update Many',
+    UpsertOne = '[Default] Upsert One',
+    UpsertMany = '[Default] Upsert Many',
+    CompareSettlement = "[Default] Compare Settlement",
+    // CacheOne= '[Default] Cache One',
+    // CacheMany= '[Default] Cache Many',
+    // CacheAll= '[Default] Cache All',
 }
 export class Initial extends Action {
     readonly type: string = CommonActionMap.Initial

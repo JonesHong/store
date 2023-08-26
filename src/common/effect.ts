@@ -3,6 +3,8 @@ import { filter, map, mergeMap, tap } from 'rxjs/operators';
 import { Action } from './action';
 
 
+type SourceAction = () => Observable<Action>;
+type SourceAny = () => Observable<any>;
 type Source = () => Observable<Action | any>;
 interface Config {
     dispatch: boolean;
@@ -14,26 +16,38 @@ interface ConfigWithDispatch extends Config {
 interface ConfigWithKeep extends Config {
     dispatch: false
 }
-export type Effect = Observable<any>;
-function createEffect(source: () => Observable<Action>, config?: ConfigWithDispatch): Effect;
-function createEffect(source: () => Observable<any>, config: ConfigWithKeep): Effect;
-function createEffect(source: Source, config: Config = { dispatch: true }) {
+export type Effect<T = any> = Observable<T>;
+// Overloads
+function createEffect(source: SourceAction, config?: ConfigWithDispatch): Effect<Action>;
+function createEffect(source: SourceAny, config: ConfigWithKeep): Effect<any>;
+// Actual implementation
+function createEffect(source: Source, config: Config = { dispatch: true }): Effect {
+    // if (config.dispatch) {
+    //     return from(source()).pipe(
+    //         map(result => {
+    //             if (!(result instanceof Action)) {
+    //                 throw new Error('Expected an Action when dispatch is true.');
+    //             }
+    //             return { result, config };
+    //         })
+    //     );
+    // }
     return from(source()).pipe(
-        map(sourceFun => {
-            return { sourceFun, config }
-        }),
-    )
+        map(result => {
+            return { result, config };
+        })
+    );
 };
 
 export { createEffect }
-export const ofType = (...allowedTypes: string[]) => {
+export const ofType = <T extends Action>(...allowedTypes: string[]) => {
     return pipe(
-        filter(Action => !!Action),
-        mergeMap((Action: Action) => {
+        filter((action: Action) => !!action),
+        mergeMap((action: Action) => {
             return from(allowedTypes)
                 .pipe(
-                    filter(type => Action['type'] == type),
-                    map(() => Action)
+                    filter(type => action['type'] == type),
+                    map(() => action as T)
                 )
         }),
     )

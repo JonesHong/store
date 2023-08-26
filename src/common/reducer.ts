@@ -126,7 +126,7 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
         cacheService: this._servicesMap['CacheService'],
       };
     }
-    action.addTraversal(this._name);
+    // action.addTraversal(this._name);
 
     // let _timeLabel = `[${this._name}] defaultActionState`;
     // console.time(_timeLabel);
@@ -336,7 +336,7 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
       this[_propMethodName] = (payload) => {
         const _entityName = entityName;
         let action: any = _method(_entityName, payload);
-        action.addTraversal(`${this._name}.${_propMethodName}`);
+        // action.addTraversal(`${this._name}.${_propMethodName}`);
         this.dispatch(action);
         return `${_propMethodName} OK!`;
       };

@@ -270,10 +270,10 @@ export class CQRS<initialState, Reducers> {
 
           _effectPropsValue?.subscribe((res) => {
             if (res['config']['dispatch'] == true) {
-              res['sourceFun']?.addTraversal(
-                `${effectName}.${_effectPropsName}`
-              );
-              this._Store.dispatch(res['sourceFun']);
+              // res['result']?.addTraversal(
+              //   `${effectName}.${_effectPropsName}`
+              // );
+              this._Store.dispatch(res['result']);
             } else {
               // console.log(`It won't dispatch:`, res)
             }

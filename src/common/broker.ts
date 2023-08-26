@@ -1,4 +1,4 @@
-import { asapScheduler, BehaviorSubject, filter, Subscription } from 'rxjs';
+import { asapScheduler, BehaviorSubject, filter, Subscription, take } from 'rxjs';
 import { Action } from './action';
 import { v4 as uuidv4 } from 'uuid';
 import { Logger } from './logger';
@@ -37,7 +37,8 @@ export abstract class Broker {
     this.topicMap.set('broadcast', new BehaviorSubject(null));
     this._isReadyToDispatchSubscribe = this.isReadyToDispatch$
       .pipe(
-        filter(isReady => !!isReady)
+        filter(isReady => !!isReady),
+        take(1)
       )
       .subscribe(
         (isReady) => {
@@ -150,12 +151,15 @@ export abstract class Broker {
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.log(_logger['_str']);
-      action.addTraversal(`${_name}._eventCache`);
+      // action.addTraversal(`${_name}._eventCache`);
       this._eventCache.push(action);
       return;
     }
+    if (!!!action) {
+      return;
+    }
     let type = action['type'];
-    action.addTraversal(`${_name}.next`);
+    // action.addTraversal(`${_name}.next`);
     if (!this.topicMap.has(type)) {
       let _logger = Logger.warn(
         'Broker',

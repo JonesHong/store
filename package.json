@@ -1,6 +1,6 @@
 {
   "name": "mycena-store",
-  "version": "1.2.22-beta.2",
+  "version": "1.2.22-beta.16",
   "description": "For mirgation",
   "author": {
     "name": "JonesHong",
@@ -34,7 +34,7 @@
     "note:unpublish": "npm unpublish <package_name>@<package_version>",
     "note:deprecate": "npm deprecate <package>@<version> '<message>'",
     "note:unpublish-example": "npm unpublish mycena-store@1.2.20-beta.26",
-    "note:deprecate-example": "npm deprecate mycena-store@1.2.8-beta.57 'this package has been deprecated'",
+    "note:deprecate-example": "npm deprecate mycena-store@1.2.22-beta.2 'this package has been deprecated'",
     "fix": "run-s fix:*",
     "fix:prettier": "prettier \"src/**/*.ts\" --write",
     "fix:lint": "eslint src --ext .ts --fix",
