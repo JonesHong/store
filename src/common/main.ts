@@ -40,7 +40,7 @@ class _Main {
    * **expectLog:** warn & error  
    * **none:** disable all print in mycena-store  
   */
-  public printMode: "detail" | "expectLog" | "none" = "expectLog";
+  public printMode: "detail" | "expectLog" | "none" = "none";
   public isUseEffect: boolean = false;
 
 

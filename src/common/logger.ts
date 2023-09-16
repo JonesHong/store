@@ -5,6 +5,7 @@ import { envType } from './env_checker';
 import { Singleton } from './decoratios/singleton';
 import { Main } from './main';
 import { take } from 'rxjs';
+import { LowDBManager } from '../only_backend/db_facade';
 
 const log = console.log;
 const error = chalk.bold.red;
@@ -15,6 +16,7 @@ const warn = chalk.hex('#FFA500'); // Orange color
 let _logFolderPath;
 Main.isLogByFIle$.asObservable().subscribe(isLogByFIle => {
   if (!!isLogByFIle && envType == 'nodejs') {
+    LowDBManager.initialDB();
     var fs = require('fs');
     _logFolderPath = './_logs';
     if (!fs.existsSync(_logFolderPath)) {

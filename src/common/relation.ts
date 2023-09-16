@@ -588,6 +588,15 @@ class _Relation {
     relationName = `_${relationName}`;
 
     if (!!!thisEntity[relationName]) return thisEntity;
+
+    // console.log(
+    //   'relation.breakInputEntityRelationships: ',
+    //   thisEntity._name,
+    //   options['RelationType'],
+    //   relationName,
+    //   relatedKey,
+    //   thisEntity[relationName][relatedKey]
+    // );
     switch (options['RelationType']) {
       case "ManyToMany":
         relationName = `_${options.thisEntityOptions['relationName']}`;
@@ -647,13 +656,15 @@ class _Relation {
     let relatedEntity!: Entity;
     // console.warn("breakEntityRelationshipByOptions", thisEntity._name, relationName, thisEntity[relationName])
     if (!!!thisEntity[relationName]) return thisEntity;
+    // console.log('relation.breakEntityRelationshipByOptions: ', thisEntity._name, method);
     // 1. 先斷開自己在對方那邊紀錄的關係，所以拿 relatedEntityOptions.thisEntityOptions.method檢查
     switch (method) {
       case "setRelationship": {
         // 此 Entity與對方的關係為"一對一(1:1)"或是"多對一(*:1)"
         relatedEntity = thisEntity[relationName];
         // asapScheduler.schedule(() => {
-        relatedEntity = relatedEntity.breakInputEntityRelationships(thisEntity, options);
+        let switchOption = this.switchRelationshipOptions(options);
+        relatedEntity = relatedEntity.breakInputEntityRelationships(thisEntity, switchOption);
         // }, 10)
         // thisEntity[relationName] = this.breakInputEntityRelationships({ thisEntity: thisEntity[relationName], inputEntity: thisEntity }, options);
         // console.warn(1111, thisEntity._name, thisEntity)
@@ -664,7 +675,8 @@ class _Relation {
         Object.values(thisEntity[relationName]).forEach((entity: Entity) => {
           relatedEntity = entity;
           // asapScheduler.schedule(() => {
-          relatedEntity = relatedEntity.breakInputEntityRelationships(thisEntity, options);
+          let switchOption = this.switchRelationshipOptions(options);
+          relatedEntity = relatedEntity.breakInputEntityRelationships(thisEntity, switchOption);
           // }, 10)
           // thisEntity[relationName][id] = this.breakInputEntityRelationships({ thisEntity: thisEntity[relationName], inputEntity: thisEntity }, options);
         });

@@ -23,11 +23,7 @@ class _LowDBManager {
      * The Singleton's constructor should always be private to prevent direct
      * construction calls with the `new` operator.
      */
-    private constructor() {
-        isFolderPathExist(this._dbFolderPath);
-        isFolderPathExist(this._todayFolder);
-        this._initialDB();
-    }
+    private constructor() { }
 
     /**
      * The static method that controls the access to the singleton instance.
@@ -43,7 +39,9 @@ class _LowDBManager {
         return _LowDBManager.instance;
     }
 
-    private _initialDB() {
+    initialDB() {
+        isFolderPathExist(this._dbFolderPath);
+        isFolderPathExist(this._todayFolder);
         let _beforeExec = DateTime.now();
         try {
             const files = readdirSync(this._todayFolder);
