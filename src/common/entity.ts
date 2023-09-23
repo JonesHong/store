@@ -68,10 +68,11 @@ export abstract class Entity {
         delete this[key];
       });
 
-    Array.from(this._relationshipKeyMap?.keys()).map((key) => {
-      this[key] = null;
-      delete this[key];
-    })
+    if (!!this._relationshipKeyMap)
+      Array.from(this._relationshipKeyMap?.keys()).map((key) => {
+        this[key] = null;
+        delete this[key];
+      })
   }
 
   constructor(property) {

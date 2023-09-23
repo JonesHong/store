@@ -273,7 +273,12 @@ export class CQRS<initialState, Reducers> {
               // res['result']?.addTraversal(
               //   `${effectName}.${_effectPropsName}`
               // );
-              this._Store.dispatch(res['result']);
+
+              if (Array.isArray(res['result'])) {
+                this._Store.dispatches(res['result']);
+              } else {
+                this._Store.dispatch(res['result']);
+              }
             } else {
               // console.log(`It won't dispatch:`, res)
             }
