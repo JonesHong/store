@@ -18,7 +18,9 @@ interface ConfigWithKeep extends Config {
 }
 export type Effect<T = any> = Observable<T>;
 // Overloads
+function createEffect(source: SourceAction, config?: ConfigWithDispatch): Effect<Action[]>;
 function createEffect(source: SourceAction, config?: ConfigWithDispatch): Effect<Action>;
+function createEffect(source: SourceAny, config: ConfigWithKeep): Effect<any[]>;
 function createEffect(source: SourceAny, config: ConfigWithKeep): Effect<any>;
 // Actual implementation
 function createEffect(source: Source, config: Config = { dispatch: true }): Effect {

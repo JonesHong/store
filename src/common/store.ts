@@ -190,7 +190,7 @@ export class Store<initialState, Reducers> extends Broker {
   private buildRelationStore = () => {
     // let { relationshipConfigTable } = this._CQRS;
     // if (!this._withRelation) this._withRelation = _.cloneDeep(this.state);
-    let StateClone = this._withRelation$.value,
+    let StateClone: initialState = this._withRelation$.value,
       theReducer: Reducer<any, any>,
       theState: EntityState<any>;
     let JDLObject: JDLObject,
@@ -201,7 +201,7 @@ export class Store<initialState, Reducers> extends Broker {
       LastSettlementToEntity: { create: Entity[]; update: Entity[] } = { create: [], update: [] };
     this.settlement$
       .pipe(
-        // tap(settlement => console.log),
+        // tap(settlement => console.log(8928038, settlement)),
         filter((settlement) => !!settlement && !!StateClone && !!Relation.RelationshipConfigTable),
         map(settlement => {
           // 這個 operator 的目的是；整理最新 settlement 的結果   
@@ -211,10 +211,11 @@ export class Store<initialState, Reducers> extends Broker {
           let { reducerName } = SettlementClone;
 
           // StateClone['_']['settlement'] = SettlementClone;
-
           theReducer = this.reducers[reducerName]; // e.g. group
           theState = StateClone[reducerName];
-          theConfig = RelationshipConfigTable[pascalCase(reducerName)]; // e.g. Group
+          theState['lastSettlement'] = lastSettlement;
+          theState['_currentHash'] = SettlementClone['_currentHash'];
+          theState['_previousHash'] = SettlementClone['_previousHash'];
 
           LastSettlementToValues = {
             // create: Object.keys(lastSettlement['create']).map((key) => lastSettlement['create'][key]),
@@ -231,7 +232,7 @@ export class Store<initialState, Reducers> extends Broker {
           }
           if (LastSettlementToValues['update'].length !== 0) {
             Array.from(LastSettlementToValues['update'])
-              .forEach((entityData) => {
+              .map((entityData) => {
                 let theEntity: Entity = theState['entities'][entityData['id']];
                 // 斷開所有連結，稍後會重建
                 // theEntity.breakAllEntityRelationships();
@@ -247,7 +248,7 @@ export class Store<initialState, Reducers> extends Broker {
           };
           if (LastSettlementToValues['delete'].length !== 0) {
             Array.from(LastSettlementToValues['delete'])
-              .forEach((id: string) => {
+              .map((id: string) => {
                 let theEntity: Entity = theState['entities'][id];
                 // 斷開所有連結
                 theEntity.killItSelf();
@@ -256,16 +257,22 @@ export class Store<initialState, Reducers> extends Broker {
               })
           }
           StateClone[reducerName] = theState;
+          // if (reducerName == "user") {
+          //   console.log(theState.ids)
+          // }
           return { SettlementClone, reducerName };
         }),
         // delay(50),
         mergeMap(({ SettlementClone, reducerName }) => {
           // 這個 operator 的目的是；針對 settlement 中的 create, update 的部分重建關係
-
+          // SettlementClone.reducerName
           let { lastSettlement } = SettlementClone;
           let isCreateLengthBeZero = lastSettlement['create'].length == 0,
             isUpdateLengthBeZero = lastSettlement['create'].length == 0;
           const RelationBuilderObservable = (EntityList: Entity[]) => {
+
+            theConfig = RelationshipConfigTable[pascalCase(reducerName)]; // e.g. Group
+            // console.log('EntityList: ', EntityList, theConfig)
             // 遍歷所有的 Entity
             return from(EntityList)
               .pipe(
@@ -296,6 +303,8 @@ export class Store<initialState, Reducers> extends Broker {
                               value: ForeignKeyValue // string
                             }
                           );
+                          // console.log(8930223, JSON.stringify({ inputEntityName, ForeignKey, ForeignKeyValue }));
+                          // console.log('relevanceEntities: ', relevanceEntities);
                           if (relevanceEntities.length !== 0) {
                             for (const relevanceEntity of relevanceEntities) {
                               entity.buildRelationship(

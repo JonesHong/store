@@ -10,6 +10,7 @@ import { camelCase } from 'lodash';
 import { Main } from './main';
 import { envType } from './env_checker';
 import { MapToString } from './functions/Transformer';
+import { pascalCase } from 'change-case';
 
 /**
  * 『只要描述直接關聯的那條線的關係是什麼』
@@ -508,19 +509,44 @@ class _Relation {
 
 
   public switchRelationshipOptions = (options: InputRelationshipOption): InputRelationshipOption => {
-    // let inputEntityName = inputEntity['_name'].replace(/Entity/, '');
+    let { RelationType } = options;
+    // e.g. RelationType = "OneToMany";
+    let reverseRelationType = RelationType.split("To") // ["One","Many"]
+      .reverse() // ["Many","One"]
+      .join("To") as typeof RelationType; // keyClone = "ManyToOne"
     return {
       ...options,
+      RelationType: reverseRelationType,
       // inputEntityClassName: options.thisEntityOptions.entity,
       inputEntityOptions: options.thisEntityOptions,
       thisEntityOptions: options.inputEntityOptions,
     }
   }
+  public checkOptions(entity, options: InputRelationshipOption) {
+    let entityName = entity['_name'].replace(/Entity/, '');
+    if (entityName !== options.thisEntityOptions.entity) options = this.switchRelationshipOptions(options);
+    let theConfig = _.cloneDeep(this.RelationshipConfigTable[pascalCase(entityName)]); // e.g. Group
+    theConfig._relatedEntityMap[options.inputEntityOptions.entity]
+  }
+  /**
+   * 通用建立關係的方法
+   * @param param0 
+   * @param options 
+   * @returns 
+   */
   public buildRelationship: RelationBuilderMethod = ({ thisEntity, inputEntity }, options) => {
     let { method } = options.inputEntityOptions;
     thisEntity[method](inputEntity, this.switchRelationshipOptions(options));
     return thisEntity;
   }
+  /**
+   * 當自己和對方的關係是"一對一"或者是"多對一"的時候
+   * 要把對方 set
+   * @param param0 
+   * @param options 
+   * @param count 
+   * @returns 
+   */
   public setRelationship: RelationBuilderMethod = ({ thisEntity, inputEntity }, options, count = 0) => {
     let {
       relationName = `_${camelCase(inputEntity._name)}`,
@@ -546,6 +572,14 @@ class _Relation {
       this.switchRelationshipOptions(options)
     )
   }
+  /**
+   * 當自己和對方的關係是"一對多"或者是"多對多"的時候
+   * 要把對方 add 進來
+   * @param param0 
+   * @param options 
+   * @param count 
+   * @returns 
+   */
   public addRelationships: RelationBuilderMethod = ({ thisEntity, inputEntity }, options, count = 0) => {
     let { isMultiRelationNameEndWithMap = false } = options;
     let {
@@ -587,98 +621,71 @@ class _Relation {
 
     relationName = `_${relationName}`;
 
+   
     if (!!!thisEntity[relationName]) return thisEntity;
 
-    // console.log(
-    //   'relation.breakInputEntityRelationships: ',
-    //   thisEntity._name,
-    //   options['RelationType'],
-    //   relationName,
-    //   relatedKey,
-    //   thisEntity[relationName][relatedKey]
-    // );
     switch (options['RelationType']) {
-      case "ManyToMany":
+      case "ManyToMany": {
         relationName = `_${options.thisEntityOptions['relationName']}`;
         thisEntity[relationName] = null;
         delete thisEntity[relationName];
         break;
-      case "OneToOne":
+      }
       case "ManyToOne":
+      case "OneToOne":
+      // case "OneToMany": 
+      {
         // 自己和對象的關係是一的時候
         thisEntity[relationName] = null;
         delete thisEntity[relationName];
         break;
+      }
       case "OneToMany":
+      // case "ManyToOne":
+         {
         // 自己和對象的關係是多的時候
         thisEntity[relationName][relatedKey] = null;
         delete thisEntity[relationName][relatedKey];
         break;
+      }
 
       default:
         break;
     }
 
-    // if (!!thisEntity[relationName][displayField]) {
-    //   // 自己和對象的關係是一的時候
-    //   thisEntity[relationName] = null;
-    //   delete thisEntity[relationName];
-    //   // console.warn(3333, thisEntity._name, thisEntity)
-    // }
-    // else if (!!thisEntity[relationName][relatedKey]) {
-    //   // 自己和對象的關係是多的時候
-    //   thisEntity[relationName][relatedKey] = null;
-    //   delete thisEntity[relationName][relatedKey];
-
-    //   // console.warn(4444, thisEntity._name, thisEntity, thisEntity[relationName])
-    // }
-    // else {
-    //   console.error("不可能!!，一定是哪裡出錯了")
-    // }
-
-    if (!!!thisEntity[relationName] || Object.keys(thisEntity[relationName]).length == 0) {
-      // asapScheduler.schedule(() => {
+    if (!!thisEntity[relationName] && Object.keys(thisEntity[relationName]).length == 0) {
       thisEntity[relationName] = null;
       delete thisEntity[relationName];
       thisEntity.deleteRelationshipKeyMap(relationName);
-      // }, 50)
     }
+
     return thisEntity;
   }
 
   public breakEntityRelationshipByOptions: RelationBreakerMethod = ({ thisEntity }, options) => {
-    // console.log(`${this._name}.breakThisEntityRelationshipByOpccccccctions:\n `, thisEntity.relationshipKeyMap)
 
     // let { relationName } = options.inputEntityOptions;
     let { relationName, displayField = "id", method } = options.thisEntityOptions;
 
     relationName = `_${relationName}`;
     let relatedEntity!: Entity;
-    // console.warn("breakEntityRelationshipByOptions", thisEntity._name, relationName, thisEntity[relationName])
     if (!!!thisEntity[relationName]) return thisEntity;
-    // console.log('relation.breakEntityRelationshipByOptions: ', thisEntity._name, method);
     // 1. 先斷開自己在對方那邊紀錄的關係，所以拿 relatedEntityOptions.thisEntityOptions.method檢查
     switch (method) {
       case "setRelationship": {
         // 此 Entity與對方的關係為"一對一(1:1)"或是"多對一(*:1)"
         relatedEntity = thisEntity[relationName];
-        // asapScheduler.schedule(() => {
-        let switchOption = this.switchRelationshipOptions(options);
+        let switchOption = { ...options };
         relatedEntity = relatedEntity.breakInputEntityRelationships(thisEntity, switchOption);
-        // }, 10)
-        // thisEntity[relationName] = this.breakInputEntityRelationships({ thisEntity: thisEntity[relationName], inputEntity: thisEntity }, options);
-        // console.warn(1111, thisEntity._name, thisEntity)
       }
         break;
       case "addRelationships": {
         // 此 Entity與對方的關係為"一對多(1:*)"或是"多對多(*:*)"
         Object.values(thisEntity[relationName]).forEach((entity: Entity) => {
-          relatedEntity = entity;
-          // asapScheduler.schedule(() => {
-          let switchOption = this.switchRelationshipOptions(options);
-          relatedEntity = relatedEntity.breakInputEntityRelationships(thisEntity, switchOption);
-          // }, 10)
-          // thisEntity[relationName][id] = this.breakInputEntityRelationships({ thisEntity: thisEntity[relationName], inputEntity: thisEntity }, options);
+          // relatedEntity = entity;
+          let switchOption = { ...options };
+          // let switchOption = this.switchRelationshipOptions(options);
+          relatedEntity = entity.breakInputEntityRelationships(thisEntity, switchOption);
         });
         // console.warn(2222, thisEntity._name, thisEntity)
       }

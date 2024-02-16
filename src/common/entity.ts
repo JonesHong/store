@@ -62,17 +62,19 @@ export abstract class Entity {
   }
   killItSelf(isTerminated: boolean = true) {
     this.breakAllEntityRelationships();
-    if (!!isTerminated)
+    if (!!isTerminated) {
       Array.from(this._dataKeySet).map((key) => {
         this[key] = null;
         delete this[key];
       });
 
-    if (!!this._relationshipKeyMap)
-      Array.from(this._relationshipKeyMap?.keys()).map((key) => {
-        this[key] = null;
-        delete this[key];
-      })
+      if (!!this._relationshipKeyMap)
+        Array.from(this._relationshipKeyMap?.keys()).map((key) => {
+          this[key] = null;
+          delete this[key];
+        })
+    }
+
   }
 
   constructor(property) {
