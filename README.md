@@ -4,6 +4,7 @@
 [![NPM Downloads][downloads-image]][downloads-url]
 [![Node.js Version][node-version-image]][node-version-url]
 [![License - MIT](https://img.shields.io/badge/License-MIT-2ea44f?logo=license)](LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/JonesHong/store)
 
 mycena-store 是 Redux-like 應用程式。  
 啟發來自於 BLoC 設計模式、 NgRx 溝通機制、Neo4j 資料結構、JHipster 關係綁定的方法...。
