@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { envType } from "./env_checker";
 import { Settlement } from "./interface/store.interface";
 import { Logger } from "./logger";
-import { upperCaseFirst } from "upper-case-first";
+// import { upperCaseFirst } from "upper-case-first";
 import { Main } from "./main";
 
 
@@ -20,7 +20,7 @@ export abstract class Action {
     private _sourceId?: string = null;
     // 終點們
     private _targetIds?: string[] = [];
-    private _traversal: Map<number, any> = new Map();
+    // private _traversal: Map<number, any> = new Map();
 
     constructor() { }
 
@@ -133,7 +133,7 @@ export class SystemInitiate extends Action {
 }
 export class ErrorResponse extends Action {
     readonly type: string = DefaultActionMap.ErrorResponse
-    constructor(public payload: { failedAction: Action, error: any, descriptions?: string, options?: any }) {
+    constructor(public payload: { failedAction?: Action, fromDir?: string, error: string, descriptions?: string, options?: any }) {
         super();
     }
 }
@@ -371,3 +371,7 @@ export type DefaultActionUnion = AddOne |
     UpsertOne |
     UpsertMany |
     CompareSettlement;
+
+function upperCaseFirst(reducerName: string) {
+    return reducerName.charAt(0).toUpperCase() + reducerName.slice(1)
+}

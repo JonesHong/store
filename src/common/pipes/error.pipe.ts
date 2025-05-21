@@ -1,6 +1,9 @@
 import { Observable, of, pipe, UnaryFunction } from "rxjs"
 import { catchError } from "rxjs/operators"
 import { Action, ErrorResponse } from "../action"
+import { Logger } from "../logger";
+import { Main } from "../main";
+import { envType } from "../env_checker";
 
 // export const ErrorHandelPipe: (event: Action) => UnaryFunction<Observable<Action>, Observable<Action | ErrorResponse>> = (event:Action) => {
 //     return pipe(
@@ -10,10 +13,16 @@ import { Action, ErrorResponse } from "../action"
 //     )
 // }
 
-export const ErrorHandelPipe: <T extends Action>(event: T) => UnaryFunction<Observable<any>, Observable<T | ErrorResponse>> = (event) => {
+export const ErrorHandelPipe: <T extends Action>(event: T, fromDir: string) => UnaryFunction<Observable<any>, Observable<T | ErrorResponse>> = (event, fromDir?: string) => {
     return pipe(
-        catchError(err => {
-            return of(new ErrorResponse({ "failedAction": event, error: err }));
+        catchError((err: string) => {
+            let _logger = Logger.error(
+                "ErrorHandelPipe",
+                `fromDir: ${fromDir} / ${err}`,
+            );
+            if (envType == "browser")
+                console.error(_logger['_str']);
+            return of(new ErrorResponse({ "failedAction": event, error: err, fromDir }));
         })
     );
 }

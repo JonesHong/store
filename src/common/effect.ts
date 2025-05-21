@@ -3,9 +3,9 @@ import { filter, map, mergeMap, tap } from 'rxjs/operators';
 import { Action } from './action';
 
 
-type SourceAction = () => Observable<Action>;
-type SourceAny = () => Observable<any>;
-type Source = () => Observable<Action | any>;
+type SourceAction<T extends Action> = () => Observable<T | T[]>;
+type SourceAny = () => Observable<any | any[]>;
+type Source<T extends Action> = () => Observable<T | any | T[] | any[]>;
 interface Config {
     dispatch: boolean;
     // effectName?: string
@@ -16,14 +16,12 @@ interface ConfigWithDispatch extends Config {
 interface ConfigWithKeep extends Config {
     dispatch: false
 }
-export type Effect<T = any> = Observable<T>;
+export type Effect<R = any> = Observable<R | R[]>;
 // Overloads
-function createEffect(source: SourceAction, config?: ConfigWithDispatch): Effect<Action[]>;
-function createEffect(source: SourceAction, config?: ConfigWithDispatch): Effect<Action>;
-function createEffect(source: SourceAny, config: ConfigWithKeep): Effect<any[]>;
-function createEffect(source: SourceAny, config: ConfigWithKeep): Effect<any>;
+function createEffect<S extends Action>(source: SourceAction<S>, config?: ConfigWithDispatch): Effect<S | S[]>;
+function createEffect(source: SourceAny, config: ConfigWithKeep): Effect<any | any[]>;
 // Actual implementation
-function createEffect(source: Source, config: Config = { dispatch: true }): Effect {
+function createEffect<S extends Action>(source: Source<S>, config: Config = { dispatch: true }): Effect {
     // if (config.dispatch) {
     //     return from(source()).pipe(
     //         map(result => {
