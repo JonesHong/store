@@ -5,10 +5,7 @@ import { isFilePathExist, isFolderPathExist } from './fs_extandtion';
 import { Logger } from '../common/logger';
 
 // https://github.com/typicode/lowdb/tree/v1.0.0
-import { Low, JSONFile } from 'lowdb'
-
-// import { JSONFile } from "lowdb/node";
-
+import { JSONFile, Low } from 'lowdb';
 // import FileSync from 'lowdb/adapters/FileSync';
 
 const service_name: string = "LowDBManager";
@@ -98,7 +95,7 @@ class _LowDBManager {
         isFilePathExist(_path, '{}', { encoding: "utf-8" });
 
         const adapter = new JSONFile(_path);
-        const db = new Low(adapter, null);
+        const db = new Low(adapter);
         this._entityDBManager[name] = db;
         this._pathManager[name] = _path;
 

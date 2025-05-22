@@ -1,457 +1,263 @@
-import _ from "lodash";
-import { asapScheduler, BehaviorSubject, concat, EmptyError, forkJoin, from, Observable, of, pipe, Subscription, throwError } from "rxjs";
-// import { addToSubscription } from "./store.interface";
-import { Broker } from "./broker";
-import { Action, AddMany, RemoveMany, SetMany } from "./action";
-import { Reducer } from "./reducer";
-import { selectRelevanceEntity } from "./selector";
-import { CQRS, Main } from "./main";
-import { EntityState } from "./interface/adapter.interface";
-import { Settlement } from "./interface/store.interface";
-import { v4 as uuidv4 } from "uuid"
-import { catchError, defaultIfEmpty, delay, filter, last, map, mergeMap, tap, toArray } from "rxjs/operators";
-import { SettlementChanged } from "./pipes/_some.pipe";
-import { JDLObject, RelationshipConfig, RelationshipConfigTable } from "./interface/relation.interface";
-import { Entity } from "./entity";
-import { addMany, addOne, removeOne, setOne, upsertOne } from "./adapter";
-import { camelCase, pascalCase } from "change-case";
-import { Relation } from "./relation";
-import { Logger } from "./logger";
-import { envType } from "./env_checker";
-// import { CacheService } from "./cache";
+// src/common/store.ts
+// Store 的核心職責是作為狀態容器、Action 分發器以及 Reducer 和 Effect 的協調器。
+// 它維護應用程式的整體狀態，處理 Action 的分發，並將 Action 傳遞給已註冊的 Reducer 來更新狀態，
+// 同時也將 Action 提供給 Effect 進行副作用處理。
+// Middleware 機制允許在 Action 到達 Reducer 之前對其進行攔截、修改或執行其他操作。
 
+import _ from "lodash"; // Lodash 暫時保留，主要用於 _.cloneDeep 在 getState 中
+import { BehaviorSubject, Observable, Subscription, Subject } from "rxjs";
+import { distinctUntilChanged, map as rxMap, shareReplay } from "rxjs/operators";
+import { Action as BaseAction } from "./action";
+import { v4 as uuidv4 } from "uuid";
+import { Logger } from "./logger";
+
+// #region Middleware API 類型定義
 
 /**
- * Split of writing functionality
- * Focus on reading repositories
- * 
- * Store doesn't depend on any one.
- * 
+ * StoreAPI 暴露給 Middleware，使其可以 dispatch 新的 Action 或獲取當前狀態。
+ * @template State Store 管理的狀態類型。
+ * @template A Action 的基礎類型，預設為 BaseAction。
  */
-export class Store<initialState, Reducers> extends Broker {
-  static isStoreCreated = false;
-  // _name: string = "Store";
-  _storeId = `store-${uuidv4()}`;
-  private subscriptionMap: Map<string, Subscription> = new Map()
-  private subscription: Subscription = new Subscription()
-  // private _lastSettlement: settlement;
-  private _CQRS: CQRS<initialState, Reducers>;
-  private _reducers: Reducers;
-  // private _withRelation: initialState;
-  private _withRelation$: BehaviorSubject<initialState> = new BehaviorSubject(null);
+export interface StoreAPI<State, A extends BaseAction = BaseAction> {
+    /** 獲取當前狀態的快照。 */
+    getState: () => State;
+    /** 
+     * 分發一個 Action。Middleware dispatch 的 Action 應該返回被 dispatch 的 Action。
+     * Action 將通過整個 Middleware 鏈（包括觸發此 dispatch 的 Middleware 之後的 Middleware）
+     * 以及最終的核心 dispatch 邏輯。
+     */
+    dispatch: (action: A) => A;
+}
 
-  public get withRelation() {
-    return this._withRelation$.value;
+/**
+ * Middleware 函式類型。
+ * Middleware 是一個高階函式，它接收 StoreAPI，返回一個接收下一個 dispatch 函式的函式，
+ * 最終返回一個處理 Action 的函式。
+ * @template State Store 管理的狀態類型。
+ * @template A Action 的基礎類型，預設為 BaseAction。
+ * @param storeApi 提供 getState 和 dispatch 方法的 Store API。
+ * @returns 一個函式，該函式接收下一個 Middleware (或核心 dispatch)。
+ *          @param next 在 Middleware 鏈中的下一個 dispatch 函式。
+ *          @returns 一個函式，該函式接收當前 Action 並返回處理後（或原樣）的 Action。
+ *                   @param action 當前正在處理的 Action。
+ *                   @returns 處理後的 Action。
+ */
+export type Middleware<State, A extends BaseAction = BaseAction> =
+    (storeApi: StoreAPI<State, A>) =>
+    (next: (action: A) => A) =>
+    (action: A) => A;
+
+// #endregion Middleware API 類型定義
+
+
+// 定義 Reducer 函式的型別
+type ReducerFn<S, A extends BaseAction = BaseAction> = (state: S, action: A) => S;
+
+// 狀態選擇器函式的型別
+type SelectorFn<State, Result> = (state: State) => Result;
+
+// Effect 執行器的型別
+type EffectRunner = () => Observable<BaseAction>;
+
+export class Store<State extends object> {
+  private _storeId = `store-${uuidv4()}`;
+
+  // 狀態管理
+  private _state$: BehaviorSubject<State>;
+
+  // Action 分發
+  private _actions$ = new Subject<BaseAction>(); // 用於廣播 Action 給 Effect
+  private _dispatchChain!: (action: BaseAction) => BaseAction; // Middleware 增強後的 dispatch
+
+  // Reducer 註冊
+  private _reducersMap = new Map<string, ReducerFn<any, BaseAction>>();
+  private _featureStates = new Map<string, any>(); // 使用 Map 儲存各 feature 的狀態
+
+  // Effect 註冊
+  private _effectSubscriptions = new Subscription();
+
+  // Middleware
+  private _middlewares: Middleware<State, BaseAction>[] = [];
+
+  constructor(initialState: State, middlewares: Middleware<State, BaseAction>[] = []) {
+    this._state$ = new BehaviorSubject(_.cloneDeep(initialState)); // 深拷貝初始狀態
+    this._middlewares = middlewares;
+    this.initializeMiddleware(); // 初始化 Middleware 鏈
+    Logger.log('Store', `Store initialized with ID: ${this._storeId}`, { initialState, middlewareCount: middlewares.length });
   }
-  public get withRelation$() {
-    return this._withRelation$.asObservable()
-  }
-  public get reducers() {
-    return this._reducers
-  }
-  private _state$: BehaviorSubject<initialState>;
-  public get state$() {
-    return this._state$.asObservable()
-  }
-  public get state() {
-    return this._state$.value
-  }
-  private _settlement$: BehaviorSubject<Settlement> = new BehaviorSubject(null);
-  public get settlement$() {
-    return this._settlement$.asObservable()
-      .pipe(
-      // SettlementChanged()
-      // SettlementChanged(this._settlement$)
+
+  /**
+   * 初始化 Middleware 鏈。
+   * 將傳入的 Middleware 數組與核心 dispatch 邏輯組合成一個單一的 dispatch 鏈。
+   */
+  private initializeMiddleware(): void {
+    // 核心的 dispatch 邏輯，將 action 送到 reducer 和 _actions$
+    const coreDispatch = (action: BaseAction): BaseAction => {
+        let stateChanged = false;
+        const currentStateSnapshot = this._state$.value; // 獲取當前全局狀態快照
+        let nextGlobalState: State = currentStateSnapshot; // 初始化 nextGlobalState
+
+        this._reducersMap.forEach((reducerFn, featureKey) => {
+            const previousFeatureState = this._featureStates.get(featureKey);
+            const newFeatureState = reducerFn(previousFeatureState, action);
+            if (previousFeatureState !== newFeatureState) {
+                this._featureStates.set(featureKey, newFeatureState);
+                stateChanged = true;
+            }
+        });
+
+        if (stateChanged) {
+            // 如果任何 feature state 發生變化，則基於更新的 _featureStates 重建全局狀態
+            // 確保 nextGlobalState 是一個新對象，即使只有一個 feature state 改變
+            nextGlobalState = { ...currentStateSnapshot }; // 從快照開始，以防多個 reducer 修改同一個 feature（雖然不推薦）
+            this._featureStates.forEach((featureState, featureKey) => {
+                // @ts-ignore - 動態賦值
+                nextGlobalState[featureKey as keyof State] = featureState;
+            });
+            this._state$.next(nextGlobalState);
+            Logger.log('Store', `State updated by coreDispatch after action: ${action.type}`, { nextGlobalState });
+        }
+        
+        this._actions$.next(action); // 將 action 送給 effects
+        return action;
+    };
+
+    // 使用 reduceRight 將 middlewares 組合成一個調用鏈
+    // Middleware 的執行順序與它們在數組中的順序一致（第一個 Middleware 最先執行）
+    this._dispatchChain = this._middlewares.reduceRight(
+        (nextInChain, currentMiddleware) => {
+            const storeApi: StoreAPI<State, BaseAction> = {
+                getState: this.getState.bind(this),
+                // Middleware 內部 dispatch 時，action 會重新進入整個 Middleware 鏈的頭部
+                dispatch: (act: BaseAction) => this.dispatch(act) 
+            };
+            return currentMiddleware(storeApi)(nextInChain);
+        },
+        coreDispatch // 最內層是核心的 dispatch
     );
   }
-  // private _settlementsLogSize = 100;
-  // private _settlementsLog = [];
-
-  constructor() {
-    super();
-    this._storeInitial();
-  }
-  private _storeInitial(): void {
-    if (!!!this._settlement$) {
-      asapScheduler.schedule(() => { this._storeInitial(); }, 100)
-      return;
-    }
-    // this.settlement$.subscribe(settlement => {
-    //   this._settlementsLog.push(settlement);
-    //   // if (this._settlementsLog.length > CacheService.maxConfig._settlementsLogSize) this._settlementsLog = this._settlementsLog.slice(1);
-    // })
-  }
-
-  setCQRS(cqrs: CQRS<initialState, Reducers>) {
-    this._CQRS = cqrs;
-  }
-  setInitial(reducers: Reducers, initialState: initialState) {
-    this._reducers = reducers;
-    this._state$ = new BehaviorSubject(initialState);
-
-    if (!this.withRelation) {
-      let stateClone = _.cloneDeep(this.state);
-
-      if (!stateClone['_']) stateClone['_'] = {};
-      this._withRelation$.next(stateClone)
-      this.buildRelationStore()
-    }
-  }
-  // count = 0
-  addReducer(reducer: Reducer<any, any>): void {
-    let keywordToSlice = reducer?._name?.search(/Reducer/);
-    // console.log(keywordToSlice, reducer)
-    if (keywordToSlice == -1) {
-      let _logger = Logger.error(
-        'Store',
-        `The reducer's name need to be includes "Reducer" .`,
-        { isPrint: Main.printMode !== "none" }
-      );
-      if (envType == 'browser' && _logger['options']['isPrint'])
-        console.error(_logger['_str']);
-      return null;
-    }
-    let reducerName = reducer?._name?.slice(0, keywordToSlice);
-    reducerName = camelCase(reducerName);
-    if (!reducerName) {
-      let _logger = Logger.error(
-        'Store',
-        `The reducer need to be an Class.`,
-        { isPrint: Main.printMode !== "none" }
-      );
-      if (envType == 'browser' && _logger['options']['isPrint'])
-        console.error(_logger['_str']);
-
-      return null;
-    }
-    if (!reducer?.listen) {
-      let _logger = Logger.error(
-        'Store',
-        `The reducer need to be an BLoC.`,
-        { isPrint: Main.printMode !== "none" }
-      );
-      if (envType == 'browser' && _logger['options']['isPrint'])
-        console.error(_logger['_str']);
-
-      return null;
-    }
-    if (!reducer?.setStore) {
-      let _logger = Logger.error(
-        'Store',
-        `The reducer need to be extends Reducer.`,
-        { isPrint: Main.printMode !== "none" }
-      );
-      if (envType == 'browser' && _logger['options']['isPrint'])
-        console.error(_logger['_str']);
-
-      return null;
-    }
-    if (this.subscriptionMap.has(reducerName)) {
-      let _logger = Logger.warn(
-        'Store',
-        `Reducer already exist.`,
-        { isPrint: Main.printMode !== "none" }
-      );
-      if (envType == 'browser' && _logger['options']['isPrint'])
-        console.warn(_logger['_str']);
-      return null;
-    }
-    let reducer$;
-    reducer$ = reducer.listen(state => {
-      let newState = this.state;
-      newState[reducerName] = state;
-      this._state$.next(newState);
-      let _settlement: Settlement = {
-        reducerName,
-        _previousHash: state['_previousHash'],
-        _currentHash: state['_currentHash'],
-        lastSettlement: state['lastSettlement']
-      }
-      this._settlement$.next(_settlement);
-    })
-    this._reducers[reducerName] = reducer;
-    this.subscription.add(reducer$);
-    this.subscriptionMap.set(reducerName, reducer$);
-    reducer.setStore(this);
-  }
-
-
-  subscribe(next?: (state: initialState) => void, error?: (error: any) => void, complete?: () => void): Subscription {
-    return this.state$.subscribe({ next, error, complete })
-  }
-
 
 
   /**
-   * 如果直接 cloneDeep(Store) 的話，每次更新都要重新綁全部的邏輯  
-   * 所以根據 settlement 的結果修正 RelationStore中的 state  
-   * 然後只重新綁訂有更新部分的關係，以達到最小消耗
+   * 獲取當前狀態的快照。
+   * @returns 當前狀態物件。
    */
-  private buildRelationStore = () => {
-    // let { relationshipConfigTable } = this._CQRS;
-    // if (!this._withRelation) this._withRelation = _.cloneDeep(this.state);
-    let StateClone: initialState = this._withRelation$.value,
-      theReducer: Reducer<any, any>,
-      theState: EntityState<any>;
-    let JDLObject: JDLObject,
-      RelationshipConfigTable: RelationshipConfigTable,
-      SettlementClone: Settlement,
-      LastSettlementToValues: { create: any[]; update: any[]; delete: string[] },
-      theConfig: RelationshipConfig,
-      LastSettlementToEntity: { create: Entity[]; update: Entity[] } = { create: [], update: [] };
-    this.settlement$
-      .pipe(
-        // tap(settlement => console.log(8928038, settlement)),
-        filter((settlement) => !!settlement && !!StateClone && !!Relation.RelationshipConfigTable),
-        map(settlement => {
-          // 這個 operator 的目的是；整理最新 settlement 的結果   
-          RelationshipConfigTable = Relation.RelationshipConfigTable;
-          SettlementClone = _.cloneDeep(settlement);
-          let { lastSettlement } = SettlementClone;
-          let { reducerName } = SettlementClone;
+  public getState(): State {
+    // 注意：如果狀態是 Immutable.js 結構，則不需要深拷貝。
+    // 由於目前 State 泛型是 object，為安全起見，返回深拷貝。
+    return _.cloneDeep(this._state$.value);
+  }
 
-          // StateClone['_']['settlement'] = SettlementClone;
-          theReducer = this.reducers[reducerName]; // e.g. group
-          theState = StateClone[reducerName];
-          theState['lastSettlement'] = lastSettlement;
-          theState['_currentHash'] = SettlementClone['_currentHash'];
-          theState['_previousHash'] = SettlementClone['_previousHash'];
+  /**
+   * 選擇狀態的特定部分並返回其 Observable。
+   * @param selectorFn 一個函式，接收當前狀態並返回狀態的選定部分。
+   * @returns 一個 Observable，發布選定狀態部分的變更。
+   */
+  public select<Result>(selectorFn: SelectorFn<State, Result>): Observable<Result> {
+    return this._state$.asObservable().pipe(
+      rxMap(state => selectorFn(state)),
+      distinctUntilChanged(),
+      shareReplay(1)
+    );
+  }
 
-          LastSettlementToValues = {
-            // create: Object.keys(lastSettlement['create']).map((key) => lastSettlement['create'][key]),
-            // update: Object.keys(lastSettlement['update']).map((key) => lastSettlement['update'][key]),
-            // delete: Object.keys(lastSettlement['delete']).map((key) => lastSettlement['delete'][key]),
-            create: Object.values(lastSettlement['create']),
-            update: Object.values(lastSettlement['update']),
-            delete: Object.values(lastSettlement['delete']),
-          };
-          LastSettlementToEntity = { create: [], update: [] }; // new! 需要歸零否則會一直累進 -20230715
-          if (LastSettlementToValues['create'].length !== 0) {
-            LastSettlementToEntity['create'] = theReducer.createEntities(LastSettlementToValues['create']);
-            theState = addMany(LastSettlementToEntity['create'], theState);
-          }
-          if (LastSettlementToValues['update'].length !== 0) {
-            Array.from(LastSettlementToValues['update'])
-              .map((entityData) => {
-                let theEntity: Entity = theState['entities'][entityData['id']];
-                // 斷開所有連結，稍後會重建
-                // theEntity.breakAllEntityRelationships();
-                // let newEntity = theReducer.createEntity(entityData);
+  /**
+   * 註冊一個 Feature Reducer。
+   * @param featureKey 此 Feature 在全局狀態樹中的鍵名。
+   * @param reducerFn 由 createReducer 建立的 Reducer 函式。
+   */
+  public addReducer<FeatureState>(
+    featureKey: string,
+    reducerFn: ReducerFn<FeatureState, BaseAction>
+  ): void {
+    if (this._reducersMap.has(featureKey)) {
+      Logger.warn('Store', `Reducer for feature key "${featureKey}" already exists. Overwriting.`, { featureKey });
+    }
+    this._reducersMap.set(featureKey, reducerFn);
 
-                // 斷開所有連結
-                theEntity.killItSelf(false);
-                let newEntity = theEntity.upsertData(entityData);
-                LastSettlementToEntity['update'].push(newEntity);
-                // theState = setOne(newEntity, theState);
-                return entityData;
-              })
-          };
-          if (LastSettlementToValues['delete'].length !== 0) {
-            Array.from(LastSettlementToValues['delete'])
-              .map((id: string) => {
-                let theEntity: Entity = theState['entities'][id];
-                // 斷開所有連結
-                theEntity.killItSelf();
-                // 從 state中刪除
-                theState = removeOne(id, theState);
-              })
-          }
-          StateClone[reducerName] = theState;
-          // if (reducerName == "user") {
-          //   console.log(theState.ids)
-          // }
-          return { SettlementClone, reducerName };
-        }),
-        // delay(50),
-        mergeMap(({ SettlementClone, reducerName }) => {
-          // 這個 operator 的目的是；針對 settlement 中的 create, update 的部分重建關係
-          // SettlementClone.reducerName
-          let { lastSettlement } = SettlementClone;
-          let isCreateLengthBeZero = lastSettlement['create'].length == 0,
-            isUpdateLengthBeZero = lastSettlement['create'].length == 0;
-          const RelationBuilderObservable = (EntityList: Entity[]) => {
+    // 初始化 feature state
+    const initialGlobalStateSnap = this._state$.value; // 使用當前值，而不是 getState() 以避免額外 clone
+    // @ts-ignore
+    const existingFeatureState = initialGlobalStateSnap[featureKey];
+    const initialFeatureState = existingFeatureState !== undefined 
+      ? existingFeatureState
+      // @ts-ignore - __INIT__ is a conceptual action for reducers to return their initial state
+      : reducerFn(undefined, { type: '__INIT__' } as BaseAction);
+      
+    this._featureStates.set(featureKey, initialFeatureState);
 
-            theConfig = RelationshipConfigTable[pascalCase(reducerName)]; // e.g. Group
-            // console.log('EntityList: ', EntityList, theConfig)
-            // 遍歷所有的 Entity
-            return from(EntityList)
-              .pipe(
-                mergeMap((entity: Entity) => {
-                  if (!theConfig || theConfig['_relationshipOptions'].length == 0) {
-                    // 如果這個 Entity 並未設定關係的話跳過
-                    return of(null)
-                  }
-                  // 遍歷這個 Entity 所有的 relationConfig
+    // 更新全局狀態以包含新的 feature state (如果它之前不存在)
+    // @ts-ignore
+    if (initialGlobalStateSnap[featureKey] === undefined) {
+        const newState = {
+            ...initialGlobalStateSnap,
+            [featureKey]: initialFeatureState,
+        };
+        this._state$.next(newState as State);
+    }
+    Logger.log('Store', `Reducer added for feature key: "${featureKey}"`, { featureKey });
+  }
 
-                  // entity = entity.breakAllEntityRelationships();
-                  return from(theConfig['_relationshipOptions'])
-                    .pipe(
-                      map((relationshipOption) => {
-                        // 根據 relationOption 的 input
-                        // 去找尋它現在在 State 的狀況
-                        // 找到跟我有關的所有 Entities去建立關係
+  /**
+   * 註冊一個或多個 Effect。
+   * @param effectRunners 一個或多個 EffectRunner 函式。
+   */
+  public addEffects(...effectRunners: EffectRunner[]): void {
+    const actionsStream = this.getActionsStream(); // 傳遞給 Effect 的是同一個 Action Stream
+    effectRunners.forEach(runner => {
+      // 注意：EffectRunner 的實現應接收 actions$
+      // const effectSubscription = runner(actionsStream).subscribe(action => {
+      // 假設 EffectRunner 內部已處理 actions$ 的訂閱，或 createEffect 會處理
+      const effectSubscription = runner().subscribe(action => { 
+        this.dispatch(action);
+      });
+      this._effectSubscriptions.add(effectSubscription);
+    });
+    Logger.log('Store', `Added ${effectRunners.length} effect(s).`);
+  }
 
-                        let thisEntityName = camelCase(relationshipOption.thisEntityOptions.entity); // e.g. billOfMaterials
-                        let inputEntityName = camelCase(relationshipOption.inputEntityOptions.entity); // e.g. subTask
-
-                        const findRelevanceAndBuildUp = (ForeignKey: string, ForeignKeyValue: string) => {
-                          // let inputReducerState = StateClone[inputEntityName];
-                          let relevanceEntities = selectRelevanceEntity(
-                            StateClone[inputEntityName],
-                            {
-                              key: ForeignKey,
-                              value: ForeignKeyValue // string
-                            }
-                          );
-                          // console.log(8930223, JSON.stringify({ inputEntityName, ForeignKey, ForeignKeyValue }));
-                          // console.log('relevanceEntities: ', relevanceEntities);
-                          if (relevanceEntities.length !== 0) {
-                            for (const relevanceEntity of relevanceEntities) {
-                              entity.buildRelationship(
-                                relevanceEntity,
-                                relationshipOption
-                              )
-                            }
-                          }
-                        }
-
-                        // let ForeignKey = relationshipOption['inputEntityOptions']['displayField'],
-                        // ForeignKeyValue = entity[relationshipOption['thisEntityOptions']['displayField']];
-                        // // 目前想到有三種可能: string. string[], Relationship[]
-
-                        switch (relationshipOption.RelationType) {
-                          case "OneToOne":
-                          case "OneToMany":
-                          case "ManyToOne": {
-                            // 拿自己 displayField的值，去對方的 displayField想找關練值 ForeignKey
-
-                            // let inputReducerState = StateClone[inputEntityName];
-                            let ForeignKey = relationshipOption['inputEntityOptions']['displayField'],
-                              ForeignKeyValue = entity[relationshipOption['thisEntityOptions']['displayField']];
-                            findRelevanceAndBuildUp(ForeignKey, ForeignKeyValue);
-                            break;
-                          }
-                          case "ManyToMany": {
-                            // 拿自己 displayField[]的值，去對方的 displayField想找關練值 ForeignKey[]
-                            let defaultRelationKey = 'id';
-                            let ForeignKeyValues: any[] = entity[relationshipOption['thisEntityOptions']['displayField']];
-                            if (!!!ForeignKeyValues || ForeignKeyValues.length == 0) break;  // new! 考慮到 non-sql，忽略空值不綁關係 -20230715
-                            for (const ForeignKeyValue of ForeignKeyValues) {
-                              // 有兩種可能 string[] or Relationship[]
-                              switch (typeof ForeignKeyValues) {
-                                case "string": {
-                                  // 是 string[]
-                                  findRelevanceAndBuildUp(defaultRelationKey, ForeignKeyValue);
-                                  break;
-                                }
-                                case "object": {
-                                  // 是 RelationShip[]
-                                  findRelevanceAndBuildUp(defaultRelationKey, ForeignKeyValue[defaultRelationKey]);
-                                  break;
-                                }
-                                default: {
-                                  let _logger = Logger.error(
-                                    'Store',
-                                    `buildRelationStore.RelationBuilderObservable RelationValue type is not supported!`,
-                                    { isPrint: Main.printMode !== "none" }
-                                  );
-                                  if (envType == 'browser' && _logger['options']['isPrint'])
-                                    console.error(_logger['_str']);
-                                  break;
-                                }
-                              }
-
-                            }
-                            // let inputReducerState = StateClone[inputEntityName];
-
-                            break;
-                          }
-                        }
-                      })
-                    )
-                })
-              )
-          }
-          let create$ = RelationBuilderObservable(LastSettlementToEntity['create']),
-            update$ = RelationBuilderObservable(LastSettlementToEntity['update']);
-          return concat(
-            isCreateLengthBeZero ? of(null) : create$,
-            isUpdateLengthBeZero ? of(null) : update$
-          ).pipe(
-            // last(),
-            toArray(),
-          )
-        }),
-        map(() => StateClone),
-        catchError(error => {
-          if (error instanceof EmptyError) {
-            // 执行一些处理
-            console.log('Settlement$ 已经空了，這不應該發生。');
-            return of(StateClone);
-          } else {
-            console.error(error);
-            return throwError(() => new Error('test'));
-          }
-        }),
-      )
-      .subscribe(
-        {
-          next: (val) => {
-            // console.log('Observable next')
-            this._withRelation$.next(val);
-          },
-          error: (err) => {
-
-          },
-          complete: () => console.log('Settlement$ 完成了，這不應該發生，RelationStore會壞掉')
-        }
-      );
+  /**
+   * 分發一個 Action。
+   * Action 將通過 Middleware 鏈，然後被傳遞給所有已註冊的 Reducer，並提供給 Effect。
+   * @param action 要分發的 Action。
+   * @returns 處理後的 Action (可能被 Middleware 修改)。
+   */
+  public dispatch(action: BaseAction): BaseAction {
+    Logger.log('Store', `Dispatching action via middleware chain: ${action.type}`, { action });
+    return this._dispatchChain(action);
+  }
+  
+  /**
+   * 獲取 Action Stream，Effect 可以訂閱此流以響應 Action。
+   * @returns Action 的 Observable。
+   */
+  public getActionsStream(): Observable<BaseAction> {
+    return this._actions$.asObservable();
   }
 
 
-}
+  /**
+   * 訂閱整個狀態樹的變更。
+   * @param next 當狀態變更時執行的回調函式。
+   * @param error 發生錯誤時執行的回調函式。
+   * @param complete Observable 完成時執行的回調函式。
+   * @returns RxJS Subscription 物件。
+   */
+  public subscribe(
+    next?: (state: State) => void,
+    error?: (error: any) => void,
+    complete?: () => void
+  ): Subscription {
+    return this._state$.subscribe({ next, error, complete });
+  }
 
-// interface StoreMain<initialState, Reducers> {
-//   forRoot<initialState, Reducers>(reducers: Reducers): _Store<initialState, Reducers>;
-//   // _Store:S
-
-// }
-
-export const settlementToObject = () => {
-  return pipe(
-    map((settlement: Settlement) => {
-      let _payload = [],
-        _create = Object.values(settlement.lastSettlement['create']),
-        _update = Object.values(settlement.lastSettlement['update']),
-        _delete = Object.values(settlement.lastSettlement['delete']);
-
-      // _create = Object.keys(settlement.lastSettlement['create']).map((key) => settlement.lastSettlement['create'][key]),
-      // _update = Object.keys(settlement.lastSettlement['update']).map((key) => settlement.lastSettlement['update'][key]),
-      // _delete = Object.keys(settlement.lastSettlement['delete']).map((key) => settlement.lastSettlement['delete'][key]);
-      if (_create.length !== 0) {
-        _payload.push(
-          new AddMany(
-            settlement.reducerName,
-            _create
-          ).toObject()
-        )
-      }
-      if (_update.length !== 0) {
-        _payload.push(
-          new SetMany(
-            settlement.reducerName,
-            _update
-          ).toObject()
-        )
-      } if (_delete.length !== 0) {
-        _payload.push(
-          new RemoveMany(
-            settlement.reducerName,
-            _delete
-          ).toObject()
-        )
-      }
-      return _payload;
-    })
-  )
+  /**
+   * 清理 Store，取消所有 Effect 的訂閱。
+   */
+  public destroy(): void {
+    this._effectSubscriptions.unsubscribe();
+    this._actions$.complete();
+    this._state$.complete();
+    Logger.log('Store', `Store ${this._storeId} destroyed.`);
+  }
 }
