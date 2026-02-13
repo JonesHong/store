@@ -65,7 +65,7 @@
     "chalk": "^4.1.2",
     "change-case": "^4.1.2",
     "inversify": "^6.0.1",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "lowdb": "^1.0.0",
     "luxon": "^3.4.4",
     "nanoid": "^3.3.4",
@@ -145,5 +145,11 @@
     "fs": false,
     "path": false,
     "os": false
+  },
+  "overrides": {
+    "js-yaml": ">=3.14.2",
+    "tar": "7.5.7",
+    "tmp": "0.2.4",
+    "lodash": "$lodash"
   }
 }
