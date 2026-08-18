@@ -225,16 +225,16 @@ export const selectSourceRelevanceEntity = (
       case 'object':
         if (Array.isArray(parameter['value'][parameter['key']])) {
           // await Promise.all(
-          let parmeterIdList;
+          let parameterIdList;
           const includesObj = (element) => typeof element === 'object';
 
           parameter['value'][parameter['key']].some(includesObj)
-            ? (parmeterIdList = parameter['value'][parameter['key']].map(
+            ? (parameterIdList = parameter['value'][parameter['key']].map(
                 (entity) => entity.id
               ))
-            : (parmeterIdList = parameter['value'][parameter['key']]);
+            : (parameterIdList = parameter['value'][parameter['key']]);
 
-          parmeterIdList.map((item) => {
+          parameterIdList.map((item) => {
             switch (typeof item) {
               case 'string':
                 if (item == entityId) {

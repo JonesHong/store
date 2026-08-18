@@ -129,7 +129,7 @@ const makeEntitiesUniqById = (entities: { [key: string]: any }[]) => {
 const redisDescription = '';
 
 const initialMain = (initialState, newState) => {
-  // initalState['lastSettlement'] = newState['lastSettlement'];
+  // initialState['lastSettlement'] = newState['lastSettlement'];
   initialState['lastSettlement']['isChanged'] = true;
   newState['ids'].map((id) => {
     initialState['lastSettlement']['actionId'] =
@@ -392,7 +392,7 @@ const removeAll = function (newState) {
     newState = removeMain(id, newState);
     // if (index == ids.length - 1) { }
   });
-  // console.log(`[Experiment/removeAll] You can use the adapter.initalState as input`)
+  // console.log(`[Experiment/removeAll] You can use the adapter.initialState as input`)
   return newState;
 };
 // - - - - - - - - - - - - -  - - - - - -

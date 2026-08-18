@@ -54,9 +54,9 @@ class _LowDBManager {
     try {
       const files = readdirSync(this._todayFolder);
       for (const file of files) {
-        const _jsonRegrx = new RegExp('.json');
-        if (_jsonRegrx.test(file)) {
-          const name = file.replace(_jsonRegrx, '');
+        const _jsonRegex = new RegExp('.json');
+        if (_jsonRegex.test(file)) {
+          const name = file.replace(_jsonRegex, '');
           this.createDB({ name });
         }
         // this._pathManager[file.replace(".json", "")] = `${this._todayFolder}/${file}`;
@@ -66,12 +66,15 @@ class _LowDBManager {
       const _afterExec = DateTime.now();
       const execTime = _afterExec.diff(_beforeExec, 'milliseconds').toMillis();
 
-      Logger.log(service_name, `initalDB:`, { execTime, payload: files });
+      Logger.log(service_name, `initialDB:`, { execTime, payload: files });
     } catch (err) {
       const _afterExec = DateTime.now();
       const execTime = _afterExec.diff(_beforeExec, 'milliseconds').toMillis();
 
-      Logger.error(service_name, `initalDB Error:`, { execTime, payload: err });
+      Logger.error(service_name, `initialDB Error:`, {
+        execTime,
+        payload: err,
+      });
     }
 
     const _afterExec = DateTime.now();
