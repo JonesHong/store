@@ -107,7 +107,7 @@ export abstract class Entity {
   }
 
   upsertData(data: {}) {
-    const entityEntries: [string, any][] = Object.entries(data);
+    const entityEntries: [string, unknown][] = Object.entries(data);
     entityEntries.map((entityEntry) => {
       const key = entityEntry[0],
         value = entityEntry[1];
