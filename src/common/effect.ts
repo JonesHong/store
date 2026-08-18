@@ -1,5 +1,5 @@
-import { from, Observable, of, pipe, Subscription, throwError } from 'rxjs';
-import { filter, map, mergeMap, tap } from 'rxjs/operators';
+import { from, Observable, pipe } from 'rxjs';
+import { filter, map, mergeMap } from 'rxjs/operators';
 
 import { Action } from './action';
 

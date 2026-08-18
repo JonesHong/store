@@ -1,5 +1,4 @@
 import { Container } from 'inversify';
-import _ from 'lodash';
 import { DateTime } from 'luxon';
 import {
   asapScheduler,
@@ -9,7 +8,6 @@ import {
   Observable,
   of,
   Subscription,
-  take,
 } from 'rxjs';
 
 import { Action } from './action';
@@ -177,8 +175,7 @@ export class CQRS<initialState, Reducers> {
     store.setCQRS(this);
 
     reducersList.map((reducerEntry) => {
-      const _key = reducerEntry[0],
-        _reducer = reducerEntry[1];
+      const _reducer = reducerEntry[1];
       _reducer.setStore(store);
       _reducer.initialHandler();
     });
@@ -269,12 +266,11 @@ export class CQRS<initialState, Reducers> {
           break;
         }
       }
-      const effectName = effectInstance['constructor']['name'],
-        effectInstanceEntries: [string, any][] = Object.entries(effectInstance);
+      const effectInstanceEntries: [string, any][] =
+        Object.entries(effectInstance);
 
       effectInstanceEntries.map((entry) => {
-        const _effectPropsName = entry[0],
-          _effectPropsValue: Effect = entry[1];
+        const _effectPropsValue: Effect = entry[1];
         if (_effectPropsValue.subscribe) {
           _effectPropsValue?.subscribe((res) => {
             if (res['config']['dispatch'] == true) {

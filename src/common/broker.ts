@@ -1,10 +1,4 @@
-import {
-  asapScheduler,
-  BehaviorSubject,
-  filter,
-  Subscription,
-  take,
-} from 'rxjs';
+import { BehaviorSubject, filter, Subscription, take } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Action } from './action';
@@ -13,7 +7,6 @@ import { Logger } from './logger';
 import { Main } from './main';
 // import { CacheService } from "./cache";
 
-const _name = 'Broker';
 /**
  * This version use Action type as topic.
  *
@@ -47,7 +40,7 @@ export abstract class Broker {
         filter((isReady) => !!isReady),
         take(1)
       )
-      .subscribe((isReady) => {
+      .subscribe(() => {
         if (this.eventCache.length !== 0) {
           this.eventCache.map((event, index) => {
             this.dispatch(event);
