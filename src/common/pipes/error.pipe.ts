@@ -4,7 +4,6 @@ import { catchError } from 'rxjs/operators';
 import { Action, ErrorResponse } from '../action';
 import { envType } from '../env_checker';
 import { Logger } from '../logger';
-import { Main } from '../main';
 
 // export const ErrorHandelPipe: (event: Action) => UnaryFunction<Observable<Action>, Observable<Action | ErrorResponse>> = (event:Action) => {
 //     return pipe(

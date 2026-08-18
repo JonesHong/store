@@ -11,10 +11,8 @@ import {
   AddOne,
   CommonActionMap,
   CompareSettlement,
-  Initial,
   MethodMap,
   PacketLossObserved,
-  RemoveAll,
   RemoveMany,
   RemoveOne,
   SetAll,
@@ -135,7 +133,6 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
     let newState: state = cloneAndReset(this.state, action);
     switch (action['type']) {
       case this.defaultMapper['actionMap']['Initial']: {
-        const actionWithType = action as Initial;
         newState = initialMain(this._initialState, newState);
         break;
       }
@@ -226,7 +223,6 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
         break;
       }
       case this.defaultMapper['actionMap']['RemoveAll']: {
-        const actionWithType = action as RemoveAll;
         newState = removeAll(newState);
         break;
       }
