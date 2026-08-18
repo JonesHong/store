@@ -13,7 +13,7 @@ import {
 } from 'rxjs';
 
 import { Action } from './action';
-import { Singleton } from './decoratios/singleton';
+import { Singleton } from './decorators/singleton';
 import { Effect } from './effect';
 import { envType } from './env_checker';
 import { RelationshipFromJDL } from './interface/relation.interface';

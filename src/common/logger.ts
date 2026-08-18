@@ -5,7 +5,7 @@ import stripAnsi from 'strip-ansi';
 
 import { LowDBManager } from '../only_backend/db_facade';
 
-import { Singleton } from './decoratios/singleton';
+import { Singleton } from './decorators/singleton';
 import { envType } from './env_checker';
 import { Main } from './main';
 
