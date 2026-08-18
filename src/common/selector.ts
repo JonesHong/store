@@ -2,18 +2,11 @@ import { inspect } from 'util';
 
 import { Bloc } from '@felangel/bloc';
 import * as _ from 'lodash';
-import {
-  asapScheduler,
-  combineLatest,
-  Observable,
-  Subscription,
-  zip,
-} from 'rxjs';
-import { filter, map, mergeMap, tap } from 'rxjs/operators';
+import { combineLatest, Observable, Subscription } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import { Entity } from './entity';
 import { envType } from './env_checker';
-import { Settlement } from './interface/store.interface';
 import { Logger } from './logger';
 import { Main } from './main';
 

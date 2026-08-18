@@ -1,4 +1,4 @@
-import { readdirSync, writeFileSync } from 'fs';
+import { readdirSync } from 'fs';
 
 import { JSONFile, Low } from 'lowdb';
 import { DateTime } from 'luxon';

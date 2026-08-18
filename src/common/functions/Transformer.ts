@@ -1,4 +1,4 @@
-export const MapToObject = (SomeMap: Map<any, any>): {} => {
+export const MapToObject = (SomeMap: Map<string, unknown>): {} => {
   const newObject = {};
   SomeMap.forEach((value, key) => {
     newObject[key] = value;
@@ -6,7 +6,7 @@ export const MapToObject = (SomeMap: Map<any, any>): {} => {
   return newObject;
 };
 
-export const MapToString = (SomeMap: Map<any, any>): string => {
+export const MapToString = (SomeMap: Map<string, unknown>): string => {
   const newObject = MapToObject(SomeMap);
   const newString = JSON.stringify(newObject);
   return newString;

@@ -5,43 +5,29 @@ import {
   BehaviorSubject,
   concat,
   EmptyError,
-  forkJoin,
   from,
-  Observable,
   of,
   pipe,
   Subscription,
   throwError,
 } from 'rxjs';
 // import { addToSubscription } from "./store.interface";
-import {
-  catchError,
-  defaultIfEmpty,
-  delay,
-  filter,
-  last,
-  map,
-  mergeMap,
-  tap,
-  toArray,
-} from 'rxjs/operators';
+import { catchError, filter, map, mergeMap, toArray } from 'rxjs/operators';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Action, AddMany, RemoveMany, SetMany } from './action';
-import { addMany, addOne, removeOne, setOne, upsertOne } from './adapter';
+import { AddMany, RemoveMany, SetMany } from './action';
+import { addMany, removeOne } from './adapter';
 import { Broker } from './broker';
 import { Entity } from './entity';
 import { envType } from './env_checker';
 import { EntityState } from './interface/adapter.interface';
 import {
-  JDLObject,
   RelationshipConfig,
   RelationshipConfigTable,
 } from './interface/relation.interface';
 import { Settlement } from './interface/store.interface';
 import { Logger } from './logger';
 import { CQRS, Main } from './main';
-import { SettlementChanged } from './pipes/_some.pipe';
 import { Reducer } from './reducer';
 import { Relation } from './relation';
 import { selectRelevanceEntity } from './selector';
@@ -219,8 +205,7 @@ export class Store<initialState, Reducers> extends Broker {
     // if (!this._withRelation) this._withRelation = _.cloneDeep(this.state);
     const StateClone: initialState = this._withRelation$.value;
     let theReducer: Reducer<any, any>, theState: EntityState<any>;
-    let JDLObject: JDLObject,
-      RelationshipConfigTable: RelationshipConfigTable,
+    let RelationshipConfigTable: RelationshipConfigTable,
       SettlementClone: Settlement,
       LastSettlementToValues: {
         create: any[];
@@ -327,9 +312,6 @@ export class Store<initialState, Reducers> extends Broker {
                     // 去找尋它現在在 State 的狀況
                     // 找到跟我有關的所有 Entities去建立關係
 
-                    const thisEntityName = camelCase(
-                      relationshipOption.thisEntityOptions.entity
-                    ); // e.g. billOfMaterials
                     const inputEntityName = camelCase(
                       relationshipOption.inputEntityOptions.entity
                     ); // e.g. subTask
@@ -468,7 +450,7 @@ export class Store<initialState, Reducers> extends Broker {
           // console.log('Observable next')
           this._withRelation$.next(val);
         },
-        error: (err) => {},
+        error: () => {},
         complete: () =>
           console.log('Settlement$ 完成了，這不應該發生，RelationStore會壞掉'),
       });

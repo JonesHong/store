@@ -1,4 +1,4 @@
-import { BehaviorSubject, filter, pipe } from 'rxjs';
+import { filter, pipe } from 'rxjs';
 
 import { Settlement } from '../interface/store.interface';
 

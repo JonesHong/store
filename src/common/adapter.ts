@@ -19,10 +19,7 @@ export const createEntityAdapter: <T>() => EntityAdapter<T> = function () {
  * @param state
  * @returns
  */
-const getInitialState = (
-  state = {},
-  config: { useFor: 'backend' | 'frontend' | 'basic' } = { useFor: 'backend' }
-) => {
+const getInitialState = (state = {}) => {
   const payload = getDEVInitialState(state);
   // switch (config['useFor']) {
   //     case "backend":
@@ -126,7 +123,6 @@ const makeEntitiesUniqById = (entities: { [key: string]: any }[]) => {
  * 改寫 以下所有 main結合 redis-json 寫法
  * https://www.npmjs.com/package/redis-json
  */
-const redisDescription = '';
 
 const initialMain = (initialState, newState) => {
   // initialState['lastSettlement'] = newState['lastSettlement'];
@@ -213,7 +209,7 @@ const addMany = function (
   }
   // let newState = cloneAndReset(state);
   // await Promise.all(
-  makeEntitiesUniqById(entities).map((entity: object, index) => {
+  makeEntitiesUniqById(entities).map((entity: object) => {
     // if (!!options) newState = addToRedis(entity, newState, options);
     // else
     newState = addMain(entity, newState);
@@ -297,7 +293,7 @@ const setMany = function (entities: object[], newState) {
       console.error(_logger['_str']);
     return newState;
   }
-  makeEntitiesUniqById(entities).map((entity, index) => {
+  makeEntitiesUniqById(entities).map((entity) => {
     newState = setMain(entity, newState);
   });
   return newState;
@@ -376,7 +372,7 @@ const removeMany = function (ids: string[], newState) {
   }
   // let newState = cloneAndReset(state);
   // await Promise.all(
-  ids.map((id, index) => {
+  ids.map((id) => {
     newState = removeMain(id, newState);
     // if (index == ids.length - 1) { }
   });
@@ -388,7 +384,7 @@ const removeMany = function (ids: string[], newState) {
  */
 const removeAll = function (newState) {
   // let newState = cloneAndReset(newState);
-  newState['ids'].map((id, index) => {
+  newState['ids'].map((id) => {
     newState = removeMain(id, newState);
     // if (index == ids.length - 1) { }
   });
@@ -470,7 +466,7 @@ const updateMany = function (entities: object[], newState) {
   }
   // let newState = cloneAndReset(state);
   // await Promise.all(
-  makeEntitiesUniqById(entities).map((entity: object, index) => {
+  makeEntitiesUniqById(entities).map((entity: object) => {
     newState = updateMain(entity, newState);
     // if (index == entities.length - 1) { }
   });
@@ -550,7 +546,7 @@ const upsertMany = function (entities: object[], newState) {
       console.error(_logger['_str']);
     return newState;
   }
-  makeEntitiesUniqById(entities).map((entity: object, index) => {
+  makeEntitiesUniqById(entities).map((entity: object) => {
     newState = upsertMain(entity, newState);
   });
   return newState;

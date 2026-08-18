@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 import { DateTime } from 'luxon';
-import { take } from 'rxjs';
 import stripAnsi from 'strip-ansi';
 
 import { LowDBManager } from '../only_backend/db_facade';

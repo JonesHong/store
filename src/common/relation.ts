@@ -2,8 +2,8 @@ import { pascalCase } from 'change-case';
 import * as _ from 'lodash';
 import { camelCase } from 'lodash';
 import { DateTime } from 'luxon';
-import { asapScheduler, from, pipe } from 'rxjs';
-import { filter, last, map, mergeMap, reduce, toArray } from 'rxjs/operators';
+import { from, pipe } from 'rxjs';
+import { filter, last, map, mergeMap, reduce } from 'rxjs/operators';
 
 import { Singleton } from './decorators/singleton';
 import { Entity } from './entity';
@@ -661,7 +661,6 @@ class _Relation {
       options.thisEntityOptions;
     const {
       // relationName = `_${camelCase(inputEntity._name)}`,
-      displayField = 'id',
       method,
     } = options.inputEntityOptions;
     if (count > 1) return thisEntity; // ManyToMany do switch more than one.
@@ -775,19 +774,17 @@ class _Relation {
   ) => {
     // let { relationName } = options.inputEntityOptions;
     let { relationName } = options.thisEntityOptions;
-    const { displayField = 'id', method } = options.thisEntityOptions;
+    const { method } = options.thisEntityOptions;
 
     relationName = `_${relationName}`;
-    let relatedEntity!: Entity;
     if (!thisEntity[relationName]) return thisEntity;
     // 1. 先斷開自己在對方那邊紀錄的關係，所以拿 relatedEntityOptions.thisEntityOptions.method檢查
     switch (method) {
       case 'setRelationship':
         {
           // 此 Entity與對方的關係為"一對一(1:1)"或是"多對一(*:1)"
-          relatedEntity = thisEntity[relationName];
           const switchOption = { ...options };
-          relatedEntity = relatedEntity.breakInputEntityRelationships(
+          thisEntity[relationName].breakInputEntityRelationships(
             thisEntity,
             switchOption
           );
@@ -797,13 +794,9 @@ class _Relation {
         {
           // 此 Entity與對方的關係為"一對多(1:*)"或是"多對多(*:*)"
           Object.values(thisEntity[relationName]).forEach((entity: Entity) => {
-            // relatedEntity = entity;
             const switchOption = { ...options };
             // let switchOption = this.switchRelationshipOptions(options);
-            relatedEntity = entity.breakInputEntityRelationships(
-              thisEntity,
-              switchOption
-            );
+            entity.breakInputEntityRelationships(thisEntity, switchOption);
           });
           // console.warn(2222, thisEntity._name, thisEntity)
         }

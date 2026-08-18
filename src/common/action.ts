@@ -54,7 +54,7 @@ export abstract class Action {
   // }
   toObject = () => {
     const _payload = {};
-    const classEntries: [string, any][] = Object.entries(this);
+    const classEntries: [string, unknown][] = Object.entries(this);
     // await Promise.all(
     classEntries.map((entry) => {
       const _key = entry[0],
@@ -112,7 +112,7 @@ export const transferActionMapToActionList = function (
     return null;
   }
   // let newActionMap = Object.assign({}, actionMap)
-  const actionList: any[] = Object.values(actionMap);
+  const actionList: string[] = Object.values(actionMap);
 
   return actionList;
 };

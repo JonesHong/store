@@ -1,15 +1,7 @@
-import * as _ from 'lodash';
-import { customAlphabet } from 'nanoid/non-secure';
-
-import { envType } from './env_checker';
 import { v4Generator } from './functions/Generator';
-import {
-  InputRelationshipOption,
-  RelationBreakerSetting,
-} from './interface/relation.interface';
-import { Logger } from './logger';
+import { InputRelationshipOption } from './interface/relation.interface';
 import { Reducer } from './reducer';
-import { DefaultRelationBreakerSetting, Relation } from './relation';
+import { Relation } from './relation';
 
 export abstract class Entity {
   abstract _name: string;
@@ -115,7 +107,7 @@ export abstract class Entity {
   }
 
   upsertData(data: {}) {
-    const entityEntries: [string, any][] = Object.entries(data);
+    const entityEntries: [string, unknown][] = Object.entries(data);
     entityEntries.map((entityEntry) => {
       const key = entityEntry[0],
         value = entityEntry[1];

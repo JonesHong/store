@@ -187,7 +187,7 @@ export abstract class Bloc<Event, State> extends Observable<State> {
     this.transitionSubscription = this.transformTransitions(
       this.transformEvents(this.eventSubject, (event: Event) => {
         return asyncToObservable(this.mapEventToState(event)).pipe(
-          map((nextState: State, _: number) => {
+          map((nextState: State) => {
             return new Transition(this.state, event, nextState);
           }),
           catchError((error) => {
