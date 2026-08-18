@@ -6,7 +6,7 @@ import { BehaviorSubject } from 'rxjs';
 
 import { Logger } from '../common/logger';
 
-import { isFilePathExist, isFolderPathExist } from './fs_extandtion';
+import { isFilePathExist, isFolderPathExist } from './fs_extension';
 
 // https://github.com/typicode/lowdb/tree/v1.0.0
 
