@@ -10,19 +10,32 @@
     "plugin:eslint-comments/recommended",
     "plugin:@typescript-eslint/recommended",
     "plugin:import/typescript",
-    "prettier",
-    "prettier/@typescript-eslint"
+    "prettier"
   ],
   "globals": { "BigInt": true, "console": true, "WebAssembly": true },
   "rules": {
     "@typescript-eslint/explicit-module-boundary-types": "off",
     // 條件式 require 是瀏覽器相容需求：package.json 的 browser 欄位把 fs/path/os
     // 映射為 false，Node 專用模組必須延後到 envType 判斷之後才載入
+    // （@typescript-eslint v8 的 recommended 新增用 no-require-imports 抓一般
+    // require() 呼叫，no-var-requires 保留給舊式 import = require() 語法，
+    // 同一豁免理由要兩條都關）
     "@typescript-eslint/no-var-requires": "off",
+    "@typescript-eslint/no-require-imports": "off",
     // 空 constructor 承載語意：Main 的 private constructor 是 singleton 的擋門機制
     "@typescript-eslint/no-empty-function": "off",
     // object / {} 出現在對外型別簽名上，收斂會改變套件使用者看到的契約，另案處理
-    "@typescript-eslint/ban-types": "warn",
+    // （@typescript-eslint v8 把 ban-types 拆成下列三條規則，語意對應延續）
+    "@typescript-eslint/no-empty-object-type": "warn",
+    "@typescript-eslint/no-unsafe-function-type": "warn",
+    "@typescript-eslint/no-wrapper-object-types": "warn",
+    // @typescript-eslint v8 的 recommended 把下列兩條的預設嚴重度從 warn 升成 error、
+    // 並新增 no-unused-expressions 到 recommended 裡（v4 時期不在其中）。這些踩點是
+    // 既有債務（見 package.json test 的已知 202 筆 warning），升級工具鏈不該讓它們
+    // 從「不擋 CI 的 warning／未檢查」變成擋 build 的 error，故拉回原本的檢查面
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-unused-vars": "warn",
+    "@typescript-eslint/no-unused-expressions": "off",
     "eslint-comments/disable-enable-pair": [
       "error",
       { "allowWholeFile": true }
