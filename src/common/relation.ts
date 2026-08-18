@@ -5,7 +5,7 @@ import { DateTime } from 'luxon';
 import { asapScheduler, from, pipe } from 'rxjs';
 import { filter, last, map, mergeMap, reduce, toArray } from 'rxjs/operators';
 
-import { Singleton } from './decoratios/singleton';
+import { Singleton } from './decorators/singleton';
 import { Entity } from './entity';
 import { envType } from './env_checker';
 import { MapToString } from './functions/Transformer';

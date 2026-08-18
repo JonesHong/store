@@ -22,4 +22,4 @@ export * from './common/store';
 export * from './common/selector';
 
 export * from './only_backend/db_facade';
-export * from './only_backend//fs_extandtion';
+export * from './only_backend/fs_extension';

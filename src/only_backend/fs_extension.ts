@@ -7,7 +7,7 @@ import { DateTime } from 'luxon';
 
 import { envType } from '../common/env_checker';
 import { Logger } from '../common/logger';
-const service_name = 'fs_extandtion';
+const service_name = 'fs_extension';
 const isFolderPathExist = (folderPath): boolean => {
   if (envType !== 'nodejs') return;
   const fs = require('fs');

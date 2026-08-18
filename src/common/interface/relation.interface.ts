@@ -20,7 +20,7 @@ export interface Relationship {
   entity: string;
   /**
    * ? What is the name of the relationship?
-   * First Level, Entity itself's key(property).
+   * First Level, Entity's own key(property).
    * relationship name == propKey
    */
   relationName?: string;
