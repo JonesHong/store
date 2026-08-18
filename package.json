@@ -73,9 +73,7 @@
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
     "strip-ansi": "^6.0.1",
-    "ts-patch": "^3.3.0",
     "tslib": "^2.4.0",
-    "typescript-transform-paths": "^4.0.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
@@ -102,8 +100,10 @@
     "prettier": "^2.1.1",
     "standard-version": "^9.0.0",
     "ts-node": "^10.8.0",
+    "ts-patch": "^3.3.0",
     "typedoc": "^0.28.20",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-transform-paths": "^4.0.0"
   },
   "files": [
     "build/main",
