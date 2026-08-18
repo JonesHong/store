@@ -2,11 +2,12 @@ import * as _ from 'lodash';
 // import { inspect } from "util"
 // import { Entity } from './entity';
 import { v4 as uuidv4 } from 'uuid';
+
 // import { RedisType, Cache } from "./cache";
 import { Action } from './action';
-import { Logger } from './logger';
 import { envType } from './env_checker';
 import { EntityAdapter, ToRedisOptions } from './interface/adapter.interface';
+import { Logger } from './logger';
 import { Main } from './main';
 
 export const createEntityAdapter: <T>() => EntityAdapter<T> = function () {
@@ -22,7 +23,7 @@ const getInitialState = (
   state = {},
   config: { useFor: 'backend' | 'frontend' | 'basic' } = { useFor: 'backend' }
 ) => {
-  let payload = getDEVInitialState(state);
+  const payload = getDEVInitialState(state);
   // switch (config['useFor']) {
   //     case "backend":
   //         payload = getDEVInitialState(state);
@@ -39,7 +40,7 @@ const getInitialState = (
   return payload;
 };
 const getBasicInitialState = (state = {}) => {
-  let payload = {
+  const payload = {
     ids: [],
     entities: {},
     ...state,
@@ -48,7 +49,7 @@ const getBasicInitialState = (state = {}) => {
 };
 
 const getDEVInitialState = (state = {}) => {
-  let payload = {
+  const payload = {
     ...getBasicInitialState(state),
     _previousHash: null,
     _currentHash: `settlement-${uuidv4()}`,
@@ -83,11 +84,11 @@ const getDEVInitialState = (state = {}) => {
  * @returns
  */
 const cloneAndReset = (state, action?: Action) => {
-  let newState = _.cloneDeep(state);
+  const newState = _.cloneDeep(state);
   // reset lastSettlement
   newState['lastSettlement'] = {
     isChanged: false,
-    actionId: !!action ? action['actionId'] : null,
+    actionId: action ? action['actionId'] : null,
     dateTime: null,
     create: {},
     update: {},
@@ -101,7 +102,7 @@ const cloneAndReset = (state, action?: Action) => {
  * @param entities
  */
 const makeEntitiesUniqById = (entities: { [key: string]: any }[]) => {
-  let uniqEntitiesObject: { [id: string]: object } = entities.reduce(
+  const uniqEntitiesObject: { [id: string]: object } = entities.reduce(
     (acc, entity) => {
       acc[entity['id']] = entity;
       return acc;
@@ -142,15 +143,16 @@ const initialMain = (initialState, newState) => {
 // |           ADD part start           |
 // - - - - - - - - - - - - -  - - - - - -
 const addMain = function (entity: object, newState) {
-  let entityId = entity['id'];
+  const entityId = entity['id'];
   if (!!newState['entities'] && !!newState['entities'][entityId]) {
     // console.warn(`[Warning/addMain] Already exist. Ignore add request in ${entity._name}`);
-    let _logger = Logger.warn(
-      "addMain",
+    const _logger = Logger.warn(
+      'addMain',
       `Already exist. Ignore add request in ${entity['id']}`,
-      { 'isPrint': false }
+      { isPrint: false }
     );
-    if (envType == "browser" && _logger['options']['isPrint']) console.warn(_logger['_str']);
+    if (envType == 'browser' && _logger['options']['isPrint'])
+      console.warn(_logger['_str']);
     return newState;
   }
   newState['ids'].push(entityId);
@@ -182,12 +184,10 @@ const addMain = function (entity: object, newState) {
 const addOne = function (entity: object, newState, options?: ToRedisOptions) {
   if (Array.isArray(entity)) {
     // console.error(`[Error/addOne] AddOne ids need to be Object`);
-    let _logger = Logger.error(
-      "addOne",
-      `AddOne ids need to be Object`,
-      { isPrint: Main.printMode !== "none" }
-    );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    const _logger = Logger.error('addOne', `AddOne ids need to be Object`, {
+      isPrint: Main.printMode !== 'none',
+    });
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.error(_logger['_str']);
     return newState;
   }
@@ -197,15 +197,17 @@ const addOne = function (entity: object, newState, options?: ToRedisOptions) {
 /**
  * Add multiple entities to the collection.
  */
-const addMany = function (entities: object[], newState, options?: ToRedisOptions) {
+const addMany = function (
+  entities: object[],
+  newState,
+  options?: ToRedisOptions
+) {
   if (!Array.isArray(entities)) {
     // console.error(`[Error/addMany] AddMany ids need to be Array`);
-    let _logger = Logger.error(
-      "addMany",
-      `AddMany ids need to be Array.`,
-      { isPrint: Main.printMode !== "none" }
-    );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    const _logger = Logger.error('addMany', `AddMany ids need to be Array.`, {
+      isPrint: Main.printMode !== 'none',
+    });
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.error(_logger['_str']);
     return newState;
   }
@@ -228,7 +230,7 @@ const addMany = function (entities: object[], newState, options?: ToRedisOptions
 // |           Set part start           |
 // - - - - - - - - - - - - -  - - - - - -
 const setMain = function (entity: object, newState) {
-  let entityId = entity['id'];
+  const entityId = entity['id'];
   let oldEntity = newState['entities'][entityId],
     newEntity: any = entity;
 
@@ -237,11 +239,10 @@ const setMain = function (entity: object, newState) {
   // let oldEntity = newState['entities'][entityId].toObject(),
   //     newEntity = entity.toObject();
   if (_.isEqual(oldEntity, newEntity) == false) {
-    if (!!!oldEntity) {
+    if (!oldEntity) {
       newState['ids'].push(entityId);
       newState['lastSettlement']['create'][entityId] = entity;
-    }
-    else {
+    } else {
       newState['lastSettlement']['update'][entityId] = entity;
     }
     // 舊的跟新的不一樣時，就以新的覆蓋舊的過去
@@ -272,12 +273,10 @@ const setMain = function (entity: object, newState) {
  */
 const setOne = function (entity: object, newState) {
   if (Array.isArray(entity)) {
-    let _logger = Logger.error(
-      "setOne",
-      `SetOne ids need to be Object.`,
-      { isPrint: Main.printMode !== "none" }
-    );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    const _logger = Logger.error('setOne', `SetOne ids need to be Object.`, {
+      isPrint: Main.printMode !== 'none',
+    });
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.error(_logger['_str']);
     return newState;
   }
@@ -291,12 +290,10 @@ const setOne = function (entity: object, newState) {
 const setMany = function (entities: object[], newState) {
   if (!Array.isArray(entities)) {
     // console.error(`[Error/setMany] SetMany ids need to be Array`);
-    let _logger = Logger.error(
-      "setMany",
-      `SetMany ids need to be Array.`,
-      { isPrint: Main.printMode !== "none" }
-    );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    const _logger = Logger.error('setMany', `SetMany ids need to be Array.`, {
+      isPrint: Main.printMode !== 'none',
+    });
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.error(_logger['_str']);
     return newState;
   }
@@ -310,12 +307,10 @@ const setMany = function (entities: object[], newState) {
  */
 const setAll = function (entities: object[], newState) {
   if (!Array.isArray(entities)) {
-    let _logger = Logger.error(
-      "setAll",
-      `SetAll ids need to be Array.`,
-      { isPrint: Main.printMode !== "none" }
-    );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    const _logger = Logger.error('setAll', `SetAll ids need to be Array.`, {
+      isPrint: Main.printMode !== 'none',
+    });
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.error(_logger['_str']);
     return newState;
   }
@@ -336,8 +331,8 @@ const setAll = function (entities: object[], newState) {
 // |          Remove part start         |
 // - - - - - - - - - - - - -  - - - - - -
 const removeMain = function (id: string, newState) {
-  let _theEntity: object = newState['entities'][id];
-  if (!!_theEntity) {
+  const _theEntity: object = newState['entities'][id];
+  if (_theEntity) {
     delete newState['entities'][id];
     newState['ids'] = Object.keys(newState['entities']);
     newState['lastSettlement']['isChanged'] = true;
@@ -352,12 +347,12 @@ const removeMain = function (id: string, newState) {
  */
 const removeOne = function (id: string, newState) {
   if (Array.isArray(id)) {
-    let _logger = Logger.error(
-      "removeOne",
+    const _logger = Logger.error(
+      'removeOne',
       `RemoveOne ids need to be String.`,
-      { isPrint: Main.printMode !== "none" }
+      { isPrint: Main.printMode !== 'none' }
     );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.error(_logger['_str']);
     return newState;
   }
@@ -370,12 +365,12 @@ const removeOne = function (id: string, newState) {
  */
 const removeMany = function (ids: string[], newState) {
   if (!Array.isArray(ids)) {
-    let _logger = Logger.error(
-      "removeMany",
+    const _logger = Logger.error(
+      'removeMany',
       `RemoveMany ids need to be Array.`,
-      { isPrint: Main.printMode !== "none" }
+      { isPrint: Main.printMode !== 'none' }
     );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.error(_logger['_str']);
     return newState;
   }
@@ -408,25 +403,25 @@ const removeAll = function (newState) {
 // |          Update part start         |
 // - - - - - - - - - - - - -  - - - - - -
 const updateMain = function (entity: object, newState) {
-  let entityId = entity['id'];
+  const entityId = entity['id'];
   if (!!newState['entities'] && !newState['entities'][entityId]) {
     // console.warn(`[Warning/updateMain] Data isn't exist. Ignore update request:\n${entity.toObject()['id']}\n`);
-    let _logger = Logger.warn(
-      "updateMain",
+    const _logger = Logger.warn(
+      'updateMain',
       `Data isn't exist. Ignore update request:\n${entity['id']}\n`,
-      { isPrint: Main.printMode !== "none" }
+      { isPrint: Main.printMode !== 'none' }
     );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.warn(_logger['_str']);
 
     return newState;
   }
-  let theEntity = newState['entities'][entityId];
+  const theEntity = newState['entities'][entityId];
 
   // 與 set不同的是舊有的 property不會去做改變跟影響
   // await Promise.all(
   Object.entries(entity).map((entry) => {
-    let _key = entry[0],
+    const _key = entry[0],
       _val = entry[1];
     if (typeof _val == 'function') return;
     if (_.isEqual(theEntity[_key], _val) == false) {
@@ -444,12 +439,12 @@ const updateMain = function (entity: object, newState) {
 const updateOne = function (entity: object, newState) {
   if (Array.isArray(entity)) {
     // console.error(`[Error/updateOne] UpdateOne ids need to be Object`);
-    let _logger = Logger.error(
-      "updateOne",
+    const _logger = Logger.error(
+      'updateOne',
       `UpdateOne ids need to be Object`,
-      { isPrint: Main.printMode !== "none" }
+      { isPrint: Main.printMode !== 'none' }
     );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.error(_logger['_str']);
 
     return newState;
@@ -464,12 +459,12 @@ const updateOne = function (entity: object, newState) {
 const updateMany = function (entities: object[], newState) {
   if (!Array.isArray(entities)) {
     // console.error(`[Error] UpdateMany ids need to be Array`);
-    let _logger = Logger.error(
-      "updateMany",
+    const _logger = Logger.error(
+      'updateMany',
       `UpdateMany ids need to be Array.`,
-      { isPrint: Main.printMode !== "none" }
+      { isPrint: Main.printMode !== 'none' }
     );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.error(_logger['_str']);
     return newState;
   }
@@ -526,12 +521,12 @@ const upsertMain = function (entity: object, newState) {
 const upsertOne = function (entity: object, newState) {
   if (Array.isArray(entity)) {
     // console.error(`[Error/upsertOne] UpsertOne ids need to be Object`);
-    let _logger = Logger.error(
-      "upsertOne",
+    const _logger = Logger.error(
+      'upsertOne',
       `UpsertOne ids need to be Object.`,
-      { isPrint: Main.printMode !== "none" }
+      { isPrint: Main.printMode !== 'none' }
     );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.error(_logger['_str']);
     return newState;
   }
@@ -546,12 +541,12 @@ const upsertOne = function (entity: object, newState) {
 const upsertMany = function (entities: object[], newState) {
   if (!Array.isArray(entities)) {
     // console.error(`[Error/upsertMany] UpsertMany ids need to be Array`);
-    let _logger = Logger.error(
-      "upsertMany",
+    const _logger = Logger.error(
+      'upsertMany',
       `UpsertMany ids need to be Array.`,
-      { isPrint: Main.printMode !== "none" }
+      { isPrint: Main.printMode !== 'none' }
     );
-    if (envType == "browser" && _logger['options']['isPrint'])
+    if (envType == 'browser' && _logger['options']['isPrint'])
       console.error(_logger['_str']);
     return newState;
   }

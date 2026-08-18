@@ -1,19 +1,30 @@
-import { asapScheduler, BehaviorSubject, delay, mergeMap, Observable, of, Subscription, take } from 'rxjs';
+import { Container } from 'inversify';
+import _ from 'lodash';
+import { DateTime } from 'luxon';
+import {
+  asapScheduler,
+  BehaviorSubject,
+  delay,
+  mergeMap,
+  Observable,
+  of,
+  Subscription,
+  take,
+} from 'rxjs';
+
 import { Action } from './action';
+import { Singleton } from './decoratios/singleton';
+import { Effect } from './effect';
+import { envType } from './env_checker';
+import { RelationshipFromJDL } from './interface/relation.interface';
+import { Logger } from './logger';
 import { Reducer } from './reducer';
+import { Relation } from './relation';
 import { createFeatureSelector, createRelationSelector } from './selector';
 import { Store } from './store';
-import { Effect } from './effect';
-import { RelationshipFromJDL } from './interface/relation.interface';
-import { Relation } from './relation';
-import _ from 'lodash';
 // import { createClient, RedisClientOptions, RedisClientType, RedisDefaultModules, RedisModules, RedisScripts } from 'redis';
 // import { CacheService, RedisOptions } from "./cache";
-import { Container } from 'inversify';
-import { Logger } from './logger';
-import { envType } from './env_checker';
-import { DateTime } from 'luxon';
-import { Singleton } from './decoratios/singleton';
+
 // import 'reflect-metadata';
 
 // export const CqrsContainer = new Container();
@@ -23,7 +34,7 @@ import { Singleton } from './decoratios/singleton';
 class _Main {
   private static instance: _Main;
   public static getInstance: () => _Main;
-  private constructor() { }
+  private constructor() {}
   public isLogByFIle$: BehaviorSubject<boolean> = new BehaviorSubject(false);
   // public get isLogByFIleSubject() {
   //   return this._isLogByFIle$;
@@ -35,16 +46,13 @@ class _Main {
   //   return this._isLogByFIle$.value;
   // }
   // public readonly isLogByFIle: boolean = false;
-  /** 
-   * **detail:** log & warn & error  
-   * **expectLog:** warn & error  
-   * **none:** disable all print in mycena-store  
-  */
-  public printMode: "detail" | "expectLog" | "none" = "none";
-  public isUseEffect: boolean = false;
-
-
-
+  /**
+   * **detail:** log & warn & error
+   * **expectLog:** warn & error
+   * **none:** disable all print in mycena-store
+   */
+  public printMode: 'detail' | 'expectLog' | 'none' = 'none';
+  public isUseEffect = false;
 }
 export const Main = _Main.getInstance();
 export class CQRS<initialState, Reducers> {
@@ -72,7 +80,7 @@ export class CQRS<initialState, Reducers> {
     return this._Store.getBroadcast().asObservable();
   }
   private _isEffectLoadedSubscribe: Subscription;
-  constructor() { }
+  constructor() {}
   public get relationshipFromJDL(): RelationshipFromJDL {
     return Relation.RelationshipFromJDL;
   }
@@ -91,16 +99,16 @@ export class CQRS<initialState, Reducers> {
   }
   setAppModule = (appModule, app?: any) => {
     this._appModule = appModule;
-    if (!!app) this._app = app;
+    if (app) this._app = app;
     if (!this._appModuleType) {
-      let _logger = Logger.warn(
+      const _logger = Logger.warn(
         'CQRS',
         `You don't set appModuleType yet, it will auto match with appModule you provide!`,
-        { isPrint: Main.printMode !== "none" }
+        { isPrint: Main.printMode !== 'none' }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.warn(_logger['_str']);
-      if (!!('injector' in appModule)) {
+      if ('injector' in appModule) {
         this._appModuleType = 'angular';
       } else if (!!app && !!('select' in app)) {
         this._appModuleType = 'nest';
@@ -146,20 +154,21 @@ export class CQRS<initialState, Reducers> {
   forRootReducers = (reducers: Reducers): void => {
     if (typeof reducers !== 'object' || Array.isArray(reducers)) {
       // console.error(`[Error/forRootReducers] Input must be a object.`);
-      let _logger = Logger.error(
-        'forRootReducers', 'Input must be a object.',
-        { isPrint: Main.printMode !== "none" }
+      const _logger = Logger.error(
+        'forRootReducers',
+        'Input must be a object.',
+        { isPrint: Main.printMode !== 'none' }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.error(_logger['_str']);
       return null;
     }
 
-
-    let store = new Store<initialState, Reducers>();
-    let reducersList: [string, Reducer<any, any>][] = Object.entries(reducers);
-    let initialState: any = reducersList.reduce((res, reducerEntry) => {
-      let _key = reducerEntry[0],
+    const store = new Store<initialState, Reducers>();
+    const reducersList: [string, Reducer<any, any>][] =
+      Object.entries(reducers);
+    const initialState: any = reducersList.reduce((res, reducerEntry) => {
+      const _key = reducerEntry[0],
         _reducer = reducerEntry[1];
       res[_key] = _reducer['state'];
       return res;
@@ -168,7 +177,7 @@ export class CQRS<initialState, Reducers> {
     store.setCQRS(this);
 
     reducersList.map((reducerEntry) => {
-      let _key = reducerEntry[0],
+      const _key = reducerEntry[0],
         _reducer = reducerEntry[1];
       _reducer.setStore(store);
       _reducer.initialHandler();
@@ -186,20 +195,18 @@ export class CQRS<initialState, Reducers> {
         delay(1000),
         mergeMap(() => this.isEffectLoaded$)
       )
-      .subscribe(
-        (isEffectLoaded) => {
-          !!Main.isUseEffect ?
-            this._Store.isReadyToDispatch$.next(isEffectLoaded) : // 有使用 Effect
-            this._Store.isReadyToDispatch$.next(true); // 沒有使用 Effect
+      .subscribe((isEffectLoaded) => {
+        Main.isUseEffect
+          ? this._Store.isReadyToDispatch$.next(isEffectLoaded) // 有使用 Effect
+          : this._Store.isReadyToDispatch$.next(true); // 沒有使用 Effect
 
-          if (!Main.isUseEffect && !!isEffectLoaded) {
-            // unsubscribe after 0.5s
-            asapScheduler.schedule(() => {
-              this._isEffectLoadedSubscribe.unsubscribe();
-            }, 500);
-          }
+        if (!Main.isUseEffect && !!isEffectLoaded) {
+          // unsubscribe after 0.5s
+          asapScheduler.schedule(() => {
+            this._isEffectLoadedSubscribe.unsubscribe();
+          }, 500);
         }
-      );
+      });
   }
 
   private effectRetryCount = 0;
@@ -208,8 +215,8 @@ export class CQRS<initialState, Reducers> {
   private timeLabelSet = new Set([]);
   forRootEffects = (effects: any[]): void => {
     Main.isUseEffect = true;
-    let _beforeExec = DateTime.now();
-    if (!!!this._appModule && this._appModuleType !== 'unit-test') {
+    const _beforeExec = DateTime.now();
+    if (!this._appModule && this._appModuleType !== 'unit-test') {
       // if AppModule is not ready, retry 0.1s later.
       this.effectRetryCount += 1;
       asapScheduler.schedule(() => {
@@ -218,19 +225,20 @@ export class CQRS<initialState, Reducers> {
       return null;
     }
     {
-      let _logger = Logger.log(
+      const _logger = Logger.log(
         'forRootEffects',
         `forRootEffects is loaded successfully in ${this.effectRetryCount} times.`,
-        { isPrint: Main.printMode == "detail" }
+        { isPrint: Main.printMode == 'detail' }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.log(_logger['_str']);
     }
     this.isEffectLoaded$.next(true);
     if (typeof effects !== 'object' || !Array.isArray(effects)) {
-      let _logger = Logger.error(
-        'forRootEffects', 'Input must be an array.',
-        { isPrint: Main.printMode !== "none" }
+      const _logger = Logger.error(
+        'forRootEffects',
+        'Input must be an array.',
+        { isPrint: Main.printMode !== 'none' }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.error(_logger['_str']);
@@ -250,24 +258,24 @@ export class CQRS<initialState, Reducers> {
           this.container.bind<typeof effect>(effect).toSelf();
           effectInstance = this.container.resolve(effect);
           break;
-        default:
-          let _logger = Logger.error(
+        default: {
+          const _logger = Logger.error(
             'forRootEffects',
             'Please check AppModule.',
-            { isPrint: Main.printMode !== "none" }
+            { isPrint: Main.printMode !== 'none' }
           );
           if (envType == 'browser' && _logger['options']['isPrint'])
             console.error(_logger['_str']);
           break;
+        }
       }
-      let effectName = effectInstance['constructor']['name'],
+      const effectName = effectInstance['constructor']['name'],
         effectInstanceEntries: [string, any][] = Object.entries(effectInstance);
 
       effectInstanceEntries.map((entry) => {
-        let _effectPropsName = entry[0],
+        const _effectPropsName = entry[0],
           _effectPropsValue: Effect = entry[1];
-        if (!!_effectPropsValue.subscribe) {
-
+        if (_effectPropsValue.subscribe) {
           _effectPropsValue?.subscribe((res) => {
             if (res['config']['dispatch'] == true) {
               // res['result']?.addTraversal(
@@ -286,13 +294,13 @@ export class CQRS<initialState, Reducers> {
         }
       });
     });
-    let _afterExec = DateTime.now();
-    let execTime = _afterExec.diff(_beforeExec, 'milliseconds').toMillis();
+    const _afterExec = DateTime.now();
+    const execTime = _afterExec.diff(_beforeExec, 'milliseconds').toMillis();
     {
-      let _logger = Logger.log(
+      const _logger = Logger.log(
         'forRootEffects',
         `forRootEffects loaded successfully.`,
-        { execTime, isPrint: Main.printMode == "detail" }
+        { execTime, isPrint: Main.printMode == 'detail' }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.log(_logger['_str']);
@@ -302,7 +310,5 @@ export class CQRS<initialState, Reducers> {
   createFeatureSelector = createFeatureSelector;
   createRelationSelector = createRelationSelector;
 }
-
-
 
 // console.error("Hello world!!! 2034/04/12");

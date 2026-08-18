@@ -1,10 +1,37 @@
 import { Bloc } from '@felangel/bloc';
-import { Store } from './store';
+import { camelCase } from 'change-case';
 import * as _ from 'lodash';
+import { DateTime } from 'luxon';
+import { asapScheduler } from 'rxjs';
+import { v4 as uuidV4 } from 'uuid';
+
 import {
-  cloneAndReset,
+  Action,
+  AddMany,
+  AddOne,
+  CommonActionMap,
+  CompareSettlement,
+  Initial,
+  MethodMap,
+  PacketLossObserved,
+  RemoveAll,
+  RemoveMany,
+  RemoveOne,
+  SetAll,
+  SetMany,
+  SetOne,
+  transferActionMapToActionList,
+  transferDefaultToEntity,
+  UpdateMany,
+  UpdateOne,
+  UpsertMany,
+  UpsertOne,
+} from './action';
+import {
   addMany,
   addOne,
+  cloneAndReset,
+  initialMain,
   removeAll,
   removeMany,
   removeOne,
@@ -15,39 +42,13 @@ import {
   updateOne,
   upsertMany,
   upsertOne,
-  initialMain,
 } from './adapter';
-import {
-  transferDefaultToEntity,
-  transferActionMapToActionList,
-  CommonActionMap,
-  MethodMap,
-  Action,
-  CompareSettlement,
-  AddOne,
-  AddMany,
-  SetOne,
-  SetMany,
-  SetAll,
-  RemoveOne,
-  RemoveMany,
-  RemoveAll,
-  UpdateOne,
-  UpdateMany,
-  UpsertOne,
-  UpsertMany,
-  Initial,
-  PacketLossObserved,
-} from './action';
-import { selectRelevanceEntity } from './selector';
-import { v4 as uuidV4 } from 'uuid';
 import { Entity } from './entity';
-import { asapScheduler } from 'rxjs';
-import { DateTime } from 'luxon';
-import { Logger } from './logger';
 import { envType } from './env_checker';
-import { camelCase } from "change-case";
+import { Logger } from './logger';
 import { Main } from './main';
+import { selectRelevanceEntity } from './selector';
+import { Store } from './store';
 
 export abstract class Reducer<action, state> extends Bloc<action, state> {
   _reducerId = `reducer-${uuidV4()}`;
@@ -60,10 +61,10 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
   private _servicesMap = {};
   addService(service) {
     if (!service.name) {
-      let _logger = Logger.error(
+      const _logger = Logger.error(
         'Reducer',
         'addService wrong.Check service _name!!',
-        { isPrint: Main.printMode !== "none" }
+        { isPrint: Main.printMode !== 'none' }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.error(_logger['_str']);
@@ -113,14 +114,14 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
   }
 
   setStore(store: Store<any, any>): void {
-    if (!!this._store) return null;
+    if (this._store) return null;
     this._store = store;
     store.addReducer(this);
   }
 
   defaultActionState(action: Action): state {
     let _redisOptions;
-    if (!!this._servicesMap['CacheService']) {
+    if (this._servicesMap['CacheService']) {
       _redisOptions = {
         reducerName: this._name,
         cacheService: this._servicesMap['CacheService'],
@@ -130,38 +131,54 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
 
     // let _timeLabel = `[${this._name}] defaultActionState`;
     // console.time(_timeLabel);
-    let _beforeExec = DateTime.now();
+    const _beforeExec = DateTime.now();
     let newState: state = cloneAndReset(this.state, action);
     switch (action['type']) {
       case this.defaultMapper['actionMap']['Initial']: {
-        let actionWithType = action as Initial;
+        const actionWithType = action as Initial;
         newState = initialMain(this._initialState, newState);
         break;
       }
       case this.defaultMapper['actionMap']['CompareSettlement']: {
-        let actionWithType = action as CompareSettlement;
+        const actionWithType = action as CompareSettlement;
         // 比較前端的 _currentHash 與後端的 _previousHash
-        if (!!this.state['_currentHash']) {
-          let { settlement } = actionWithType;
+        if (this.state['_currentHash']) {
+          const { settlement } = actionWithType;
 
           if (this.state['_currentHash'] !== settlement['_previousHash']) {
             // 發現掉包，不改當前的 state
             // 送一個 Action 回去給 Store 應該要透過 Effect 重新拿完整/缺失的部分
-            this.store.dispatch(new PacketLossObserved({ reducerName: this._name, _currentHash: this.state['_currentHash'] }));
-          }
-          else {
+            this.store.dispatch(
+              new PacketLossObserved({
+                reducerName: this._name,
+                _currentHash: this.state['_currentHash'],
+              })
+            );
+          } else {
             // 代表後端丟來的資料跟前端是沒有落差的
             let stateClone: state = _.cloneDeep(this.state);
-            let createValues = Object.values(settlement['lastSettlement']['create']),
-              updateValues = Object.values(settlement['lastSettlement']['update']),
-              deleteValues = Object.values(settlement['lastSettlement']['delete']);
+            const createValues = Object.values(
+                settlement['lastSettlement']['create']
+              ),
+              updateValues = Object.values(
+                settlement['lastSettlement']['update']
+              ),
+              deleteValues = Object.values(
+                settlement['lastSettlement']['delete']
+              );
             // let createValues = Object.keys(settlement['lastSettlement']['create']).map((key) => settlement['lastSettlement']['create'][key]),
             //   updateValues = Object.keys(settlement['lastSettlement']['update']).map((key) => settlement['lastSettlement']['update'][key]),
             //   deleteValues = Object.keys(settlement['lastSettlement']['delete']).map((key) => settlement['lastSettlement']['delete'][key]);
             // 按照後端 settlement 完的結果更新前端的 state
-            createValues.length !== 0 ? stateClone = addMany(createValues, stateClone) : null;
-            updateValues.length !== 0 ? stateClone = upsertMany(updateValues, stateClone) : null;
-            deleteValues.length !== 0 ? stateClone = removeMany(deleteValues, stateClone) : null;
+            createValues.length !== 0
+              ? (stateClone = addMany(createValues, stateClone))
+              : null;
+            updateValues.length !== 0
+              ? (stateClone = upsertMany(updateValues, stateClone))
+              : null;
+            deleteValues.length !== 0
+              ? (stateClone = removeMany(deleteValues, stateClone))
+              : null;
             // 更新完 state 也要同步當前的 hash版本
             stateClone['_currentHash'] = settlement['_currentHash'];
             stateClone['_previousHash'] = settlement['_previousHash'];
@@ -174,70 +191,70 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
         break;
       }
       case this.defaultMapper['actionMap']['AddOne']: {
-        let actionWithType = action as AddOne;
+        const actionWithType = action as AddOne;
         newState = addOne(actionWithType['entity'], newState, _redisOptions);
         break;
       }
       case this.defaultMapper['actionMap']['AddMany']: {
-        let actionWithType = action as AddMany;
+        const actionWithType = action as AddMany;
         newState = addMany(actionWithType['entities'], newState, _redisOptions);
         break;
       }
       case this.defaultMapper['actionMap']['SetOne']: {
-        let actionWithType = action as SetOne;
+        const actionWithType = action as SetOne;
         newState = setOne(actionWithType['entity'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['SetMany']: {
-        let actionWithType = action as SetMany;
+        const actionWithType = action as SetMany;
         newState = setMany(actionWithType['entities'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['SetAll']: {
-        let actionWithType = action as SetAll;
+        const actionWithType = action as SetAll;
         newState = setAll(actionWithType['entities'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['RemoveOne']: {
-        let actionWithType = action as RemoveOne;
+        const actionWithType = action as RemoveOne;
         newState = removeOne(actionWithType['id'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['RemoveMany']: {
-        let actionWithType = action as RemoveMany;
+        const actionWithType = action as RemoveMany;
         newState = removeMany(actionWithType['ids'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['RemoveAll']: {
-        let actionWithType = action as RemoveAll;
+        const actionWithType = action as RemoveAll;
         newState = removeAll(newState);
         break;
       }
       case this.defaultMapper['actionMap']['UpdateOne']: {
-        let actionWithType = action as UpdateOne;
+        const actionWithType = action as UpdateOne;
         newState = updateOne(actionWithType['entity'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['UpdateMany']: {
-        let actionWithType = action as UpdateMany;
+        const actionWithType = action as UpdateMany;
         newState = updateMany(actionWithType['entities'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['UpsertOne']: {
-        let actionWithType = action as UpsertOne;
+        const actionWithType = action as UpsertOne;
         newState = upsertOne(actionWithType['entity'], newState);
         break;
       }
       case this.defaultMapper['actionMap']['UpsertMany']: {
-        let actionWithType = action as UpsertMany;
+        const actionWithType = action as UpsertMany;
         newState = upsertMany(actionWithType['entities'], newState);
         break;
       }
       default: {
-        let _logger = Logger.log(
+        const _logger = Logger.log(
           'DefaultActionState',
           `defaultActionState() doesn't handle this action: ${action['type']}.\nMake sure it has been handle in ${this._name}.mapEventToState() or Effect.`,
-          { isPrint: Main.printMode == "detail" }
+          { isPrint: Main.printMode == 'detail' }
         );
         if (envType == 'browser' && _logger['options']['isPrint'])
           console.log(_logger['_str']);
@@ -246,10 +263,10 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
     }
     if (!newState['lastSettlement']['isChanged']) {
       // 如果沒改變
-      let _logger = Logger.log(
+      const _logger = Logger.log(
         'DefaultActionState',
         `There is no change after action(${action['type']}):`,
-        { isPrint: Main.printMode == "detail", payload: action }
+        { isPrint: Main.printMode == 'detail', payload: action }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.log(_logger['_str']);
@@ -262,25 +279,24 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
       newState['lastSettlement']['actionId'] = action['actionId'];
     }
     // console.timeEnd(_timeLabel);
-    let _afterExec = DateTime.now();
-    let execTime = _afterExec.diff(_beforeExec, 'milliseconds').toMillis();
+    const _afterExec = DateTime.now();
+    const execTime = _afterExec.diff(_beforeExec, 'milliseconds').toMillis();
     newState['lastSettlement']['dateTime'] = _afterExec.valueOf();
-    let _logger = Logger.log(this._name, `DefaultActionState finished.`, {
+    const _logger = Logger.log(this._name, `DefaultActionState finished.`, {
       execTime,
-      isPrint: Main.printMode == "detail"
+      isPrint: Main.printMode == 'detail',
     });
     if (envType == 'browser' && _logger['options']['isPrint'])
       console.log(_logger['_str']);
     return newState;
   }
 
-
   private _entityClass;
   public setEntity(entityClass) {
     this._entityClass = entityClass;
   }
   createEntity = (data: object): Entity => {
-    let _payload = new this._entityClass(data);
+    const _payload = new this._entityClass(data);
     return _payload;
   };
   createEntities = (dataList: any[]): Entity[] => {
@@ -288,11 +304,11 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
     if (Array.isArray(dataList)) {
       _payload = dataList.map((data) => this.createEntity(data));
     } else {
-      let _logger = Logger.error(
+      const _logger = Logger.error(
         this._name,
         `createEntities doesn't handle: ${dataList}`,
         {
-          isPrint: Main.printMode !== "none"
+          isPrint: Main.printMode !== 'none',
         }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
@@ -303,7 +319,7 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
     return _payload;
   };
   turnStateToEntities() {
-    let _payload = _.cloneDeep(this.state);
+    const _payload = _.cloneDeep(this.state);
     _payload['entities'] = this.createEntities(_payload['entities']);
     return _payload;
   }
@@ -322,20 +338,20 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
   upsertOne: (entity: any) => string;
   upsertMany: (entities: any[]) => string;
   private handleEntityMethods = () => {
-    let keywordToSlice = this?._name?.search(/Reducer/);
+    const keywordToSlice = this?._name?.search(/Reducer/);
     const entityName = this?._name?.slice(0, keywordToSlice);
     this.defaultMapper = transferDefaultToEntity(entityName);
     const _methodMap = this.defaultMapper['methodMap'];
 
     Object.entries(_methodMap).map((entry) => {
-      let _key = entry[0],
+      const _key = entry[0],
         _method: any = entry[1],
         _propMethodName = camelCase(_key);
       this._actionTypeList.push(this.defaultMapper['actionMap'][_key]);
 
       this[_propMethodName] = (payload) => {
         const _entityName = entityName;
-        let action: any = _method(_entityName, payload);
+        const action: any = _method(_entityName, payload);
         // action.addTraversal(`${this._name}.${_propMethodName}`);
         this.dispatch(action);
         return `${_propMethodName} OK!`;
@@ -360,22 +376,22 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
   };
 
   getPureData() {
-    let _payload = _.cloneDeep(this.state);
+    const _payload = _.cloneDeep(this.state);
 
     Object.entries(_payload['entities']).map(async (entry: [string, {}]) => {
-      let _key = entry[0],
+      const _key = entry[0],
         _val = this.createEntity(entry[1]);
       _payload['entities'][_key] = await _val.toObject();
     });
     return _payload;
   }
   subscribeTopic = (actionTypeList: string[]): void => {
-    if (!!!this._store) {
-      let _logger = Logger.warn(
+    if (!this._store) {
+      const _logger = Logger.warn(
         this._name,
         `Because Store is not ready yet, subscribeTopic will retry in 50 ms.`,
         {
-          isPrint: Main.printMode !== "none"
+          isPrint: Main.printMode !== 'none',
         }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
@@ -385,10 +401,10 @@ export abstract class Reducer<action, state> extends Bloc<action, state> {
       }, 50);
       return;
     }
-    let topicList$ = this._store.addTopicsByActionTypeList(actionTypeList);
+    const topicList$ = this._store.addTopicsByActionTypeList(actionTypeList);
     topicList$.map((topic$) => {
       topic$.subscribe((action: any) => {
-        if (!!action) {
+        if (action) {
           this.add(action);
         }
       });

@@ -1,40 +1,42 @@
-import { DateTime } from 'luxon';
 import chalk from 'chalk';
-import stripAnsi from 'strip-ansi';
-import { envType } from './env_checker';
-import { Singleton } from './decoratios/singleton';
-import { Main } from './main';
+import { DateTime } from 'luxon';
 import { take } from 'rxjs';
+import stripAnsi from 'strip-ansi';
+
 import { LowDBManager } from '../only_backend/db_facade';
+
+import { Singleton } from './decoratios/singleton';
+import { envType } from './env_checker';
+import { Main } from './main';
 
 const log = console.log;
 const error = chalk.bold.red;
 const warn = chalk.hex('#FFA500'); // Orange color
 
-
 //
 let _logFolderPath;
-Main.isLogByFIle$.asObservable().subscribe(isLogByFIle => {
+Main.isLogByFIle$.asObservable().subscribe((isLogByFIle) => {
   if (!!isLogByFIle && envType == 'nodejs') {
     LowDBManager.initialDB();
-    var fs = require('fs');
+    const fs = require('fs');
     _logFolderPath = './_logs';
     if (!fs.existsSync(_logFolderPath)) {
       fs.mkdirSync(_logFolderPath);
-      Main.printMode == "detail" ? log(`Create '${_logFolderPath}'!`) : null;
+      Main.printMode == 'detail' ? log(`Create '${_logFolderPath}'!`) : null;
     } else {
-      Main.printMode == "detail" ? log(warn(`Filepath '${_logFolderPath}' is existed!`)) : null;
+      Main.printMode == 'detail'
+        ? log(warn(`Filepath '${_logFolderPath}' is existed!`))
+        : null;
     }
   }
-
 });
 
 // https://moment.github.io/luxon/#/formatting?id=table-of-tokens
-const DateString = (fmt: string = 'yyyy/LL/dd HH:mm:ss') => {
+const DateString = (fmt = 'yyyy/LL/dd HH:mm:ss') => {
   return DateTime.now().toFormat(fmt);
 };
 
-type LoggerType = 'Loaded' | 'Test' | 'Dev' | 'Error' | 'Warn' | String;
+type LoggerType = 'Loaded' | 'Test' | 'Dev' | 'Error' | 'Warn' | string;
 interface Options {
   isPrint?: boolean;
   execTime?: number;
@@ -50,7 +52,7 @@ class _Logger {
    * This implementation let you subclass the Singleton class while keeping
    * just one instance of each subclass around.
    */
-  public static getInstance: () => _Logger
+  public static getInstance: () => _Logger;
   /**
    * The Singleton's constructor should always be private to prevent direct
    * construction calls with the `new` operator.
@@ -58,16 +60,15 @@ class _Logger {
 
   private _logPath;
   private constructor() {
-    Main.isLogByFIle$.asObservable().subscribe(isLogByFIle => {
-      if (!!isLogByFIle) this.init();
+    Main.isLogByFIle$.asObservable().subscribe((isLogByFIle) => {
+      if (isLogByFIle) this.init();
     });
     // this.init();
   }
   private init() {
-
     if (envType == 'nodejs') {
-      var fs = require('fs');
-      var path = require('path');
+      const fs = require('fs');
+      const path = require('path');
       this._logPath = path.resolve(
         `${_logFolderPath}/${DateString('yyyy.LL.dd.HH.mm.ss')}.log`
       );
@@ -75,14 +76,13 @@ class _Logger {
         encoding: 'utf-8',
       });
     }
-  };
-
+  }
 
   private _baseHandler({ _str, options }: { _str: string; options: Options }) {
     // let _str, options;
-    if (!!options) {
+    if (options) {
       const isOptionsProp = (prop: 'isPrint' | 'execTime' | 'payload') =>
-        options.hasOwnProperty(prop);
+        Object.prototype.hasOwnProperty.call(options, prop);
       if (!isOptionsProp('isPrint')) {
         options['isPrint'] = true;
       }
@@ -95,7 +95,7 @@ class _Logger {
 
       if (!!options['isPrint'] && envType == 'nodejs') {
         if (isOptionsProp('payload')) {
-          log(_str, " payload:\n", options['payload']);
+          log(_str, ' payload:\n', options['payload']);
         } else {
           log(_str);
         }
@@ -103,9 +103,9 @@ class _Logger {
     }
 
     if (!!Main.isLogByFIle$.value && envType == 'nodejs') {
-      var fs = require('fs');
-      let _logsData = fs.readFileSync(this._logPath, { encoding: 'utf-8' });
-      let _payload = `${_logsData}\n${stripAnsi(_str)}`;
+      const fs = require('fs');
+      const _logsData = fs.readFileSync(this._logPath, { encoding: 'utf-8' });
+      const _payload = `${_logsData}\n${stripAnsi(_str)}`;
       fs.writeFileSync(this._logPath, _payload, { encoding: 'utf-8' });
     }
     return { _str, options };

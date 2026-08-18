@@ -5,14 +5,13 @@
 // import * as _ from 'lodash';
 // import { createClient, RedisClientOptions, RedisClientType, RedisDefaultModules, RedisModules, RedisScripts } from 'redis';
 
-
 // export type RedisType = RedisClientType<RedisDefaultModules & RedisModules, RedisScripts>;
 // export type RedisOptions = RedisClientOptions<RedisModules, RedisScripts>;
 // /**
-//  * 參考 NestJs的 Caching  
-//  * * https://docs.nestjs.com/techniques/caching  
-//  *   
-//  * 參考 Redis  
+//  * 參考 NestJs的 Caching
+//  * * https://docs.nestjs.com/techniques/caching
+//  *
+//  * 參考 Redis
 //  * * https://redis.io/documentation
 //  * * https://www.runoob.com/redis/redis-commands.html
 //  */
@@ -53,7 +52,6 @@
 //     public get Redis() {
 //         return this._Redis;
 //     }
-
 
 // }
 

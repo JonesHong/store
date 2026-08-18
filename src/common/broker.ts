@@ -1,8 +1,15 @@
-import { asapScheduler, BehaviorSubject, filter, Subscription, take } from 'rxjs';
-import { Action } from './action';
+import {
+  asapScheduler,
+  BehaviorSubject,
+  filter,
+  Subscription,
+  take,
+} from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
-import { Logger } from './logger';
+
+import { Action } from './action';
 import { envType } from './env_checker';
+import { Logger } from './logger';
 import { Main } from './main';
 // import { CacheService } from "./cache";
 
@@ -37,27 +44,21 @@ export abstract class Broker {
     this.topicMap.set('broadcast', new BehaviorSubject(null));
     this._isReadyToDispatchSubscribe = this.isReadyToDispatch$
       .pipe(
-        filter(isReady => !!isReady),
+        filter((isReady) => !!isReady),
         take(1)
       )
-      .subscribe(
-        (isReady) => {
-          if (this.eventCache.length == 0) {
-          }
-          else {
-
-            this.eventCache.map((event, index) => {
-              this.dispatch(event);
-              if (index + 1 === this._eventCache.length) {
-                this._eventCache = [];
-              }
-            });
-          }
-          // asapScheduler.schedule(() => {
-          // }, 10);
+      .subscribe((isReady) => {
+        if (this.eventCache.length !== 0) {
+          this.eventCache.map((event, index) => {
+            this.dispatch(event);
+            if (index + 1 === this._eventCache.length) {
+              this._eventCache = [];
+            }
+          });
         }
-
-      );
+        // asapScheduler.schedule(() => {
+        // }, 10);
+      });
 
     // let broadcast = this.getBroadcast();
     // broadcast.subscribe((event) => {
@@ -67,13 +68,13 @@ export abstract class Broker {
   }
 
   getEventChain() {
-    let _payload: { ids: string[]; events: { [key: string]: Action } } = {
+    const _payload: { ids: string[]; events: { [key: string]: Action } } = {
       ids: [],
       events: {},
     };
     // make _payload first.
     this._eventsLog.map((event) => {
-      let _id = event['_id'];
+      const _id = event['_id'];
       if (!(_id in _payload['events'])) {
         _payload.ids.push(_id);
         _payload.events[_id] = event;
@@ -81,8 +82,8 @@ export abstract class Broker {
     });
     // build the chain;
     this._eventsLog.map((event) => {
-      let _parent = _payload['events'][event['_parentId']];
-      if (!!_parent) event.setParent(_parent);
+      const _parent = _payload['events'][event['_parentId']];
+      if (_parent) event.setParent(_parent);
     });
     return _payload;
   }
@@ -91,12 +92,12 @@ export abstract class Broker {
     return this.topicMap.get('broadcast');
   }
   getTopicByAction(action: Action): BehaviorSubject<Action> | undefined {
-    let type = action['type'];
+    const type = action['type'];
     if (!this.topicMap.has(type)) {
-      let _logger = Logger.error(
+      const _logger = Logger.error(
         'getTopicByAction',
         `There is no topicName: ${type}`,
-        { isPrint: Main.printMode !== "none" }
+        { isPrint: Main.printMode !== 'none' }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.error(_logger['_str']);
@@ -105,12 +106,12 @@ export abstract class Broker {
     return this.topicMap.get(type);
   }
   addTopicByActionType(actionType: string): BehaviorSubject<Action> {
-    let topic$: BehaviorSubject<Action> = new BehaviorSubject(null);
+    const topic$: BehaviorSubject<Action> = new BehaviorSubject(null);
     if (this._topicMap.has(actionType)) {
-      let _logger = Logger.error(
+      const _logger = Logger.error(
         'addTopicByActionType',
         `Topic <${actionType}> is already exist.`,
-        { isPrint: Main.printMode !== "none" }
+        { isPrint: Main.printMode !== 'none' }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.error(_logger['_str']);
@@ -122,12 +123,12 @@ export abstract class Broker {
   addTopicsByActionTypeList = (
     actionTypeList: string[]
   ): BehaviorSubject<Action>[] => {
-    let topicList$: BehaviorSubject<Action>[] = [];
+    const topicList$: BehaviorSubject<Action>[] = [];
     if (!Array.isArray(actionTypeList)) {
-      let _logger = Logger.error(
+      const _logger = Logger.error(
         'addTopicsByActionTypeList',
         `Input must be an Action.type array.`,
-        { isPrint: Main.printMode !== "none" }
+        { isPrint: Main.printMode !== 'none' }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.error(_logger['_str']);
@@ -135,8 +136,8 @@ export abstract class Broker {
     }
     // await Promise.all(
     actionTypeList.map((action) => {
-      let topic = this.addTopicByActionType(action);
-      !!topic ? topicList$.push(topic) : null;
+      const topic = this.addTopicByActionType(action);
+      topic ? topicList$.push(topic) : null;
     });
     // )
     return topicList$;
@@ -144,10 +145,10 @@ export abstract class Broker {
 
   dispatch(action: Action): void {
     if (!this.isReadyToDispatch$.value) {
-      let _logger = Logger.log(
+      const _logger = Logger.log(
         'Broker',
         `Broker is not ready yet. Action has been cache. It'll re-dispatch later.`,
-        { isPrint: Main.printMode == "detail" }
+        { isPrint: Main.printMode == 'detail' }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
         console.log(_logger['_str']);
@@ -155,26 +156,28 @@ export abstract class Broker {
       this._eventCache.push(action);
       return;
     }
-    if (!!!action) {
+    if (!action) {
       return;
     }
-    let type = action['type'];
+    const type = action['type'];
     // action.addTraversal(`${_name}.next`);
     if (!this.topicMap.has(type)) {
-      let _logger = Logger.warn(
+      const _logger = Logger.warn(
         'Broker',
         `This event didn't have a specific Subject topic. You can get it by broadcast topic or check Action config:`,
-        { payload: action, isPrint: Main.printMode !== "none" }
+        { payload: action, isPrint: Main.printMode !== 'none' }
       );
       if (envType == 'browser' && _logger['options']['isPrint'])
-        console.warn(_logger['_str'] + '\n' + JSON.stringify(_logger['options']['payload']));
+        console.warn(
+          _logger['_str'] + '\n' + JSON.stringify(_logger['options']['payload'])
+        );
       // this.addTopic(action);
     } else {
-      let theTopic = this.getTopicByAction(action);
+      const theTopic = this.getTopicByAction(action);
       theTopic?.next(action);
     }
 
-    let broadcastTopic = this.topicMap.get('broadcast');
+    const broadcastTopic = this.topicMap.get('broadcast');
     broadcastTopic.next(action);
   }
   dispatches(actions: Action[]) {

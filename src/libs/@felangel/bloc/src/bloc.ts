@@ -1,8 +1,11 @@
-import { Observable, Subject, EMPTY, Subscription } from 'rxjs'
-import { catchError, concatMap, map } from 'rxjs/operators'
-import { BlocObserver, EventStreamClosedError, Transition } from '../bloc'
+import { EMPTY, Observable, Subject, Subscription } from 'rxjs';
+import { catchError, concatMap, map } from 'rxjs/operators';
 
-export type NextFunction<Event, State> = (value: Event) => Observable<Transition<Event, State>>
+import { BlocObserver, EventStreamClosedError, Transition } from '../bloc';
+
+export type NextFunction<Event, State> = (
+  value: Event
+) => Observable<Transition<Event, State>>;
 
 /**
  *
@@ -17,15 +20,15 @@ export type NextFunction<Event, State> = (value: Event) => Observable<Transition
  */
 export abstract class Bloc<Event, State> extends Observable<State> {
   constructor(private _state: State) {
-    super()
-    this.stateSubject = new Subject()
-    this.bindStateSubject()
+    super();
+    this.stateSubject = new Subject();
+    this.bindStateSubject();
   }
 
-  private emitted: boolean = false
-  private eventSubject = new Subject<Event>()
-  private stateSubject: Subject<State>
-  private transitionSubscription: Subscription = Subscription.EMPTY
+  private emitted = false;
+  private eventSubject = new Subject<Event>();
+  private stateSubject: Subject<State>;
+  private transitionSubscription: Subscription = Subscription.EMPTY;
 
   /**
    * The current `BlocObserver`.
@@ -34,7 +37,7 @@ export abstract class Bloc<Event, State> extends Observable<State> {
    * @type {BlocObserver}
    * @memberof Bloc
    */
-  static observer: BlocObserver = new BlocObserver()
+  static observer: BlocObserver = new BlocObserver();
 
   /**
    * Returns the current state of the bloc.
@@ -44,7 +47,7 @@ export abstract class Bloc<Event, State> extends Observable<State> {
    * @memberof Bloc
    */
   get state(): State {
-    return this._state
+    return this._state;
   }
 
   /**
@@ -61,7 +64,7 @@ export abstract class Bloc<Event, State> extends Observable<State> {
     onError?: ((onError: any) => any) | undefined,
     onDone?: (() => any) | undefined
   ): Subscription {
-    return this.stateSubject.subscribe(onData, onError, onDone)
+    return this.stateSubject.subscribe(onData, onError, onDone);
   }
 
   /**
@@ -73,12 +76,12 @@ export abstract class Bloc<Event, State> extends Observable<State> {
   add(event: Event): void {
     try {
       if (this.eventSubject.isStopped) {
-        throw new EventStreamClosedError()
+        throw new EventStreamClosedError();
       }
-      this.onEvent(event)
-      this.eventSubject.next(event)
+      this.onEvent(event);
+      this.eventSubject.next(event);
     } catch (error) {
-      this.onError(error)
+      this.onError(error);
     }
   }
 
@@ -89,7 +92,7 @@ export abstract class Bloc<Event, State> extends Observable<State> {
    * @memberof Bloc
    */
   onEvent(event: Event): void {
-    Bloc.observer.onEvent(this, event)
+    Bloc.observer.onEvent(this, event);
   }
 
   /**
@@ -112,7 +115,7 @@ export abstract class Bloc<Event, State> extends Observable<State> {
     events: Observable<Event>,
     next: NextFunction<Event, State>
   ): Observable<Transition<Event, State>> {
-    return events.pipe(concatMap(next))
+    return events.pipe(concatMap(next));
   }
 
   /**
@@ -125,7 +128,7 @@ export abstract class Bloc<Event, State> extends Observable<State> {
    * @return {*}  {AsyncIterableIterator<State>}
    * @memberof Bloc
    */
-  abstract mapEventToState(event: Event): AsyncIterableIterator<State>
+  abstract mapEventToState(event: Event): AsyncIterableIterator<State>;
 
   /**
    * Transforms the `Observable<Transition>` into a new `Observable<Transition>`.
@@ -141,7 +144,7 @@ export abstract class Bloc<Event, State> extends Observable<State> {
   transformTransitions(
     transitions: Observable<Transition<Event, State>>
   ): Observable<Transition<Event, State>> {
-    return transitions
+    return transitions;
   }
 
   /**
@@ -153,7 +156,7 @@ export abstract class Bloc<Event, State> extends Observable<State> {
    * @memberof Bloc
    */
   onTransition(transition: Transition<Event, State>): void {
-    Bloc.observer.onTransition(this, transition)
+    Bloc.observer.onTransition(this, transition);
   }
 
   /**
@@ -164,7 +167,7 @@ export abstract class Bloc<Event, State> extends Observable<State> {
    * @memberof Bloc
    */
   onError(error: any): void {
-    Bloc.observer.onError(this, error)
+    Bloc.observer.onError(this, error);
   }
 
   /**
@@ -175,9 +178,9 @@ export abstract class Bloc<Event, State> extends Observable<State> {
    * @memberof Bloc
    */
   close(): void {
-    this.stateSubject.complete()
-    this.eventSubject.complete()
-    this.transitionSubscription.unsubscribe()
+    this.stateSubject.complete();
+    this.eventSubject.complete();
+    this.transitionSubscription.unsubscribe();
   }
 
   private bindStateSubject(): void {
@@ -185,41 +188,43 @@ export abstract class Bloc<Event, State> extends Observable<State> {
       this.transformEvents(this.eventSubject, (event: Event) => {
         return asyncToObservable(this.mapEventToState(event)).pipe(
           map((nextState: State, _: number) => {
-            return new Transition(this.state, event, nextState)
+            return new Transition(this.state, event, nextState);
           }),
-          catchError(error => {
-            this.onError(error)
-            return EMPTY
+          catchError((error) => {
+            this.onError(error);
+            return EMPTY;
           })
-        )
+        );
       })
     ).subscribe((transition: Transition<Event, State>) => {
-      if (transition.nextState === this.state && this.emitted) return
+      if (transition.nextState === this.state && this.emitted) return;
       try {
-        this.onTransition(transition)
-        this._state = transition.nextState
-        this.stateSubject.next(transition.nextState)
+        this.onTransition(transition);
+        this._state = transition.nextState;
+        this.stateSubject.next(transition.nextState);
       } catch (error) {
-        this.onError(error)
+        this.onError(error);
       }
-      this.emitted = true
-    })
+      this.emitted = true;
+    });
   }
 }
 
-function asyncToObservable<T>(iterable: AsyncIterableIterator<T>): Observable<T> {
+function asyncToObservable<T>(
+  iterable: AsyncIterableIterator<T>
+): Observable<T> {
   return new Observable<T>(
-    observer =>
+    (observer) =>
       void (async () => {
         try {
           for await (const item of iterable) {
-            if (observer.closed) return
-            observer.next(item)
+            if (observer.closed) return;
+            observer.next(item);
           }
-          observer.complete()
+          observer.complete();
         } catch (e) {
-          observer.error(e)
+          observer.error(e);
         }
       })()
-  )
+  );
 }
