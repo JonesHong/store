@@ -1,12 +1,15 @@
 import * as _ from 'lodash';
+import { customAlphabet } from 'nanoid/non-secure';
+
 import { envType } from './env_checker';
-import { InputRelationshipOption, RelationBreakerSetting } from './interface/relation.interface';
+import { v4Generator } from './functions/Generator';
+import {
+  InputRelationshipOption,
+  RelationBreakerSetting,
+} from './interface/relation.interface';
 import { Logger } from './logger';
 import { Reducer } from './reducer';
-import { DefaultRelationBreakerSetting, Relation } from "./relation"
-import { customAlphabet } from 'nanoid/non-secure'
-import { v4Generator } from './functions/Generator';
-
+import { DefaultRelationBreakerSetting, Relation } from './relation';
 
 export abstract class Entity {
   abstract _name: string;
@@ -18,9 +21,12 @@ export abstract class Entity {
     return this._dataKeySet;
   }
   public get relationshipKeyMap(): Map<string, InputRelationshipOption> {
-    return this._relationshipKeyMap
+    return this._relationshipKeyMap;
   }
-  public setRelationshipKeyMap(relationName: string, options: InputRelationshipOption) {
+  public setRelationshipKeyMap(
+    relationName: string,
+    options: InputRelationshipOption
+  ) {
     this._relationshipKeyMap.set(relationName, options);
   }
   public deleteRelationshipKeyMap(relationName: string) {
@@ -36,45 +42,62 @@ export abstract class Entity {
    *      thisEntityOptions: { "relationName": "_memberMap", "displayField": "clientId", "method": "setRelationship" },
    *      // member.id -> member.clientId
    *    }
-   * )  
+   * )
    * @param param
-   * @param options 
+   * @param options
    */
   buildRelationship(entity: Entity, options: InputRelationshipOption) {
-    Relation.buildRelationship({ thisEntity: this, inputEntity: entity }, options);
+    Relation.buildRelationship(
+      { thisEntity: this, inputEntity: entity },
+      options
+    );
   }
   setRelationship(entity: Entity, options: InputRelationshipOption) {
-    Relation.setRelationship({ thisEntity: this, inputEntity: entity }, options);
+    Relation.setRelationship(
+      { thisEntity: this, inputEntity: entity },
+      options
+    );
   }
 
   addRelationships(entity: Entity, options: InputRelationshipOption) {
-    Relation.addRelationships({ thisEntity: this, inputEntity: entity }, options);
+    Relation.addRelationships(
+      { thisEntity: this, inputEntity: entity },
+      options
+    );
   }
 
-  breakInputEntityRelationships(entity: Entity, options: InputRelationshipOption) {
-    return Relation.breakInputEntityRelationships({ thisEntity: this, inputEntity: entity }, options);
+  breakInputEntityRelationships(
+    entity: Entity,
+    options: InputRelationshipOption
+  ) {
+    return Relation.breakInputEntityRelationships(
+      { thisEntity: this, inputEntity: entity },
+      options
+    );
   }
   breakEntityRelationshipByOptions(options: InputRelationshipOption) {
-    return Relation.breakEntityRelationshipByOptions({ thisEntity: this }, options);
+    return Relation.breakEntityRelationshipByOptions(
+      { thisEntity: this },
+      options
+    );
   }
   breakAllEntityRelationships() {
     return Relation.breakAllEntityRelationships(this);
   }
-  killItSelf(isTerminated: boolean = true) {
+  killItSelf(isTerminated = true) {
     this.breakAllEntityRelationships();
-    if (!!isTerminated) {
+    if (isTerminated) {
       Array.from(this._dataKeySet).map((key) => {
         this[key] = null;
         delete this[key];
       });
 
-      if (!!this._relationshipKeyMap)
+      if (this._relationshipKeyMap)
         Array.from(this._relationshipKeyMap?.keys()).map((key) => {
           this[key] = null;
           delete this[key];
-        })
+        });
     }
-
   }
 
   constructor(property) {
@@ -87,24 +110,24 @@ export abstract class Entity {
     return this._reducer;
   }
   setReducer(reducer: Reducer<any, any>) {
-    if (!!this._reducer) return null;
+    if (this._reducer) return null;
     this._reducer = reducer;
   }
 
   upsertData(data: {}) {
-    let entityEntries: [string, any][] = Object.entries(data);
+    const entityEntries: [string, any][] = Object.entries(data);
     entityEntries.map((entityEntry) => {
-      let key = entityEntry[0],
+      const key = entityEntry[0],
         value = entityEntry[1];
       this[key] = value;
       this._dataKeySet.add(key);
     });
-    if (!!!this.id) this.id = v4Generator();
+    if (!this.id) this.id = v4Generator();
     return this;
-  };
+  }
 
   toObject(): object {
-    let payload = {};
+    const payload = {};
 
     Array.from(this._dataKeySet).map((key) => {
       payload[key] = this[key];
@@ -140,5 +163,5 @@ export abstract class Entity {
 
     // console.log('\n\n', payload)
     return payload;
-  };
+  }
 }
