@@ -106,7 +106,7 @@ class _Relation {
   /**
    * https://www.jhipster.tech/managing-relationships/
    */
-  toJDLFormat(config: any) {
+  toJDLFormat(_config: any) {
     console.log('not finished!! now is empty.');
     // let entitiesConfig = Object.entries(config);
     // let RelationshipFromJDL = _.cloneDeep(this.RelationshipFromJDL);
@@ -190,7 +190,7 @@ class _Relation {
    */
   fromJDL = (
     relationshipFromJDL: RelationshipFromJDL,
-    options?: { isTreatSameManyToOneAndOneToMany: boolean }
+    _options?: { isTreatSameManyToOneAndOneToMany: boolean }
   ) => {
     // SQL: JOIN Employee employee with user.id = employee.userId
     const relationshipFromJDLEntities: [string, Set<string>][] =

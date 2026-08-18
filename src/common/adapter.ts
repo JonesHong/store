@@ -177,7 +177,7 @@ const addMain = function (entity: object, newState) {
 /**
  * Add one entity to the collection.
  */
-const addOne = function (entity: object, newState, options?: ToRedisOptions) {
+const addOne = function (entity: object, newState, _options?: ToRedisOptions) {
   if (Array.isArray(entity)) {
     // console.error(`[Error/addOne] AddOne ids need to be Object`);
     const _logger = Logger.error('addOne', `AddOne ids need to be Object`, {
@@ -196,7 +196,7 @@ const addOne = function (entity: object, newState, options?: ToRedisOptions) {
 const addMany = function (
   entities: object[],
   newState,
-  options?: ToRedisOptions
+  _options?: ToRedisOptions
 ) {
   if (!Array.isArray(entities)) {
     // console.error(`[Error/addMany] AddMany ids need to be Array`);
