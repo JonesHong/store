@@ -26,7 +26,7 @@
   "license": "MIT",
   "keywords": [],
   "scripts": {
-    "build": "run-p build:*",
+    "build": "run-p build:main build:module",
     "build:main": "ttsc -p tsconfig.json",
     "build:module": "ttsc -p tsconfig.module.json",
     "build:watch": "ttsc -p tsconfig.json -w",
@@ -121,7 +121,8 @@
     "typescript": {
       "rewritePaths": {
         "src/": "build/main/"
-      }
+      },
+      "compile": false
     },
     "files": [
       "!build/module/**"

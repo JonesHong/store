@@ -4,19 +4,25 @@
   "parserOptions": { "project": "./tsconfig.json" },
   "env": { "es6": true },
   "ignorePatterns": ["node_modules", "build", "coverage"],
-  "plugins": ["import", "eslint-comments", "functional"],
+  "plugins": ["import", "eslint-comments"],
   "extends": [
     "eslint:recommended",
     "plugin:eslint-comments/recommended",
     "plugin:@typescript-eslint/recommended",
     "plugin:import/typescript",
-    "plugin:functional/lite",
     "prettier",
     "prettier/@typescript-eslint"
   ],
   "globals": { "BigInt": true, "console": true, "WebAssembly": true },
   "rules": {
     "@typescript-eslint/explicit-module-boundary-types": "off",
+    // 條件式 require 是瀏覽器相容需求：package.json 的 browser 欄位把 fs/path/os
+    // 映射為 false，Node 專用模組必須延後到 envType 判斷之後才載入
+    "@typescript-eslint/no-var-requires": "off",
+    // 空 constructor 承載語意：Main 的 private constructor 是 singleton 的擋門機制
+    "@typescript-eslint/no-empty-function": "off",
+    // object / {} 出現在對外型別簽名上，收斂會改變套件使用者看到的契約，另案處理
+    "@typescript-eslint/ban-types": "warn",
     "eslint-comments/disable-enable-pair": [
       "error",
       { "allowWholeFile": true }
